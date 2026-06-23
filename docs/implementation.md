@@ -26,7 +26,9 @@ For *why* and *what*, see:
 11. [Current Corpus on Disk](#11-current-corpus-on-disk)
 12. [Known Limitations](#12-known-limitations)
 13. [Phase 3 — Topic Modeling & Clustering](#13-phase-3--topic-modeling--clustering)
-14. [Next Steps (Phase 4+)](#14-next-steps-phase-4)
+14. [Phase 4 — Insight Generation (PM-ready cards)](#14-phase-4--insight-generation-pm-ready-cards)
+15. [Phase 5 — Storage & Indexing](#15-phase-5--storage--indexing)
+16. [Phase 6 — Visualization & Delivery](#16-phase-6--visualization--delivery)
 
 ---
 
@@ -36,14 +38,14 @@ For *why* and *what*, see:
 |---|---|---|
 | **Phase 1 — Data Collection** | ✅ Implemented | All 5 sources wired; ~2,540 records collected |
 | **Phase 2 — AI Analysis (Groq)** | ✅ Implemented | Reads `data/raw/*.jsonl`, sends batches of reviews to Groq, extracts structured insights to `data/processed/insights.csv` (2,277 unique insights, 100% coverage) |
-| **Phase 3 — Topic Modeling & Clustering** | ✅ Implemented | Embeds insights with `sentence-transformers/all-MiniLM-L6-v2`, clusters with BERTopic (UMAP + HDBSCAN + c-TF-IDF), generates human-friendly topic labels via Groq |
-| Phase 4 — Insight Generation (PM-ready cards) | ⏳ Pending | Aggregation + RAG via Groq, leveraging the clusters from Phase 3 |
-| Phase 5 — Storage & Indexing | ⏳ Pending | Raw lake is the local FS today; upgrade to Postgres/Vector DB later |
-| Phase 6 — Visualization & Delivery | ⏳ Pending | |
+| **Phase 3 — Topic Modeling & Clustering** | ✅ Implemented | BERTopic on Phase-2 insights → `topics.csv` (59 clusters) |
+| **Phase 4 — Insight Generation (PM-ready cards)** | ✅ Implemented | RAG-style Groq synthesis per cluster → `insight_cards.csv` + `.json` (53 cards) |
+| **Phase 5 — Storage & Indexing** | ✅ Implemented | DuckDB warehouse + Chroma vector index + SQLite catalog → `data/index/` |
+| **Phase 6 — Visualization & Delivery** | ✅ Implemented | Streamlit PM dashboard + export + RAG chat → `run_dashboard.py` |
 
 ### LLM choice
 
-We use **[Groq](https://groq.com)** with the `llama-3.3-70b-versatile` model for every LLM call in this project (Phase 2 today, Phase 4 later). Reasons:
+We use **[Groq](https://groq.com)** for every LLM call in Phases 2 and 4 (and optional labeling in Phase 3). Reasons:
 
 - **Speed:** ~1 second per call vs. ~10 seconds on equivalent OpenAI tiers — critical when processing thousands of reviews
 - **Cost:** generous free tier covers this project end-to-end at typical batch sizes
@@ -100,6 +102,39 @@ SPOTIFY PROJECT/
 │       ├── labeler.py                 ← Groq-based topic naming (heuristic fallback)
 │       ├── storage.py                 ← Writes topics.csv + insights_with_topics.csv
 │       └── pipeline.py                ← ClusteringPipeline orchestrator
+│   │
+│   └── phase4_insights/
+│       ├── __init__.py                ← public exports: GenerationPipeline, InsightCard
+│       ├── config.py                  ← Phase-4 env settings + Groq reuse
+│       ├── schemas.py                 ← InsightCard + TopicBundle models
+│       ├── utils.py                   ← loguru setup
+│       ├── loader.py                  ← Load topics.csv + insights_with_topics.csv + timestamps
+│       ├── aggregator.py              ← Theme aggregation, segment compare, trend detect
+│       ├── scorer.py                  ← Priority scoring (volume × severity × trend)
+│       ├── prompts.py                 ← Groq RAG prompt templates
+│       ├── generator.py               ← LLM card synthesis + rule-based fallback
+│       ├── storage.py                 ← Writes insight_cards.csv + insight_cards.json
+│       └── pipeline.py                ← GenerationPipeline orchestrator
+│   │
+│   └── phase5_storage/
+│       ├── __init__.py                ← public exports: IndexingPipeline, QueryEngine
+│       ├── config.py                  ← DuckDB / Chroma / catalog paths + search settings
+│       ├── utils.py                   ← loguru setup
+│       ├── loaders.py                 ← Load Phases 1–4 CSV/JSONL + embeddings.npy
+│       ├── warehouse.py               ← DuckDBWarehouse (raw, insights, enriched, topics, cards)
+│       ├── vector_index.py            ← Chroma persistent collection for review embeddings
+│       ├── catalog.py                 ← SQLite MetadataCatalog (index runs + model versions)
+│       ├── query.py                   ← QueryEngine: semantic search, filters, card lookups
+│       └── pipeline.py                ← IndexingPipeline orchestrator
+│   │
+│   └── phase6_dashboard/
+│       ├── __init__.py                ← public exports: DashboardData
+│       ├── config.py                  ← Streamlit + chat + export settings
+│       ├── data.py                    ← DashboardData analytics over QueryEngine
+│       ├── charts.py                  ← Plotly chart builders (dark Spotify theme)
+│       ├── export.py                  ← Markdown + JSON digest export
+│       ├── chat.py                    ← RAG chatbot (semantic search + Groq)
+│       └── app.py                     ← Streamlit multipage dashboard
 │
 ├── data/raw/                          ← raw data lake (gitignored)
 │   ├── app_store/run_date=<YYYY-MM-DD>/
@@ -116,17 +151,33 @@ SPOTIFY PROJECT/
 │   ├── insights_with_topics.csv       ← Phase 3 output (insights joined with topic_id + label)
 │   ├── embeddings.npy                 ← cached sentence-transformer vectors
 │   ├── embedding_index.csv            ← row -> review_id map for embeddings.npy
-│   └── topic_model/                   ← serialized BERTopic model (safetensors)
+│   ├── topic_model/                   ← serialized BERTopic model (safetensors)
+│   ├── insight_cards.csv              ← Phase 4 output (PM-ready cards, ranked by priority)
+│   └── insight_cards.json             ← same cards as JSON array (for dashboards/APIs)
+│
+├── data/index/                        ← Phase 5 output (gitignored)
+│   ├── warehouse.duckdb               ← DuckDB analytical warehouse
+│   ├── catalog.db                     ← SQLite index-run audit trail
+│   └── chroma/                        ← Chroma persistent vector store
+│
+├── data/exports/                      ← Phase 6 digest exports (gitignored)
 │
 ├── logs/phase1_collection.log         ← rotating log (10 MB × 14 days)
 ├── logs/phase2_analysis.log           ← rotating log
 ├── logs/phase3_clustering.log         ← rotating log
+├── logs/phase4_insights.log           ← rotating log
+├── logs/phase5_storage.log            ← rotating log
 ├── run_phase1.py                      ← CLI: collection
 ├── run_phase2.py                      ← CLI: AI analysis
 ├── run_phase3.py                      ← CLI: clustering
+├── run_phase4.py                      ← CLI: insight card generation
+├── run_phase5.py                      ← CLI: build DuckDB + Chroma + catalog
+├── search_reviews.py                  ← CLI: semantic search + filters + cards
+├── run_dashboard.py                   ← CLI: launch Streamlit PM dashboard
 ├── inspect_runs.py                    ← helper: show raw totals on disk
 ├── inspect_insights.py                ← helper: distributions in insights.csv
 ├── inspect_topics.py                  ← helper: pretty-print topics.csv
+├── inspect_cards.py                   ← helper: pretty-print insight_cards.csv
 ├── check_coverage.py                  ← helper: Phase 2 coverage report
 ├── requirements.txt
 ├── .env.example
@@ -165,6 +216,10 @@ Pinned in `requirements.txt`:
 | `hdbscan` | 0.8.33 | Density-based clustering inside BERTopic |
 | `scikit-learn` | 1.4.0 | CountVectorizer for c-TF-IDF |
 | `numpy` | 1.26.0 | Embedding array I/O |
+| `duckdb` | 1.0.0 | Phase 5 analytical warehouse (local; swap for Postgres in prod) |
+| `chromadb` | 0.5.0 | Phase 5 vector index for semantic search (local; swap for pgvector in prod) |
+| `streamlit` | 1.33.0 | Phase 6 interactive PM dashboard |
+| `plotly` | 5.18.0 | Phase 6 charts (priority bars, trends, segment heatmaps) |
 
 > **Note:** `app-store-scraper` was originally listed but **dropped** because it pins `requests==2.23.0` (severe conflict). The App Store connector now uses Apple's public **iTunes RSS feed** directly via `requests` — zero third-party dependency.
 
@@ -368,6 +423,29 @@ data/raw/
 - Within a run, dedup by `review_id` → no double-writes
 - Manifest is append-only → full audit trail forever
 
+### Phase 5 index layout
+
+Queryable stores built from Phases 1–4 outputs (production: swap DuckDB → Postgres, Chroma → pgvector):
+
+```
+data/index/
+├── warehouse.duckdb          ← raw_reviews, insights, reviews_enriched, topics, insight_cards
+├── catalog.db                ← index_runs + model_versions (SQLite audit trail)
+└── chroma/                   ← persistent Chroma collection (2070 review embeddings)
+```
+
+**DuckDB tables:**
+
+| Table | Source | Rows (first run) |
+|---|---|---|
+| `raw_reviews` | Phase 1 JSONL | 2,277 |
+| `insights` | Phase 2 CSV (deduped) | 2,277 |
+| `reviews_enriched` | Phase 3 `insights_with_topics.csv` + raw join | 2,070 |
+| `topics` | Phase 3 `topics.csv` | 60 |
+| `insight_cards` | Phase 4 `insight_cards.csv` | 53 |
+
+**View:** `v_cards_with_topics` — insight cards joined to topic labels/keywords.
+
 ---
 
 ## 8. How to Run
@@ -489,7 +567,7 @@ Run `python inspect_runs.py` any time to see updated totals.
 | **Twitter / X requires paid API** | Cannot collect tweets | Mastodon connector provides equivalent public-post data for free |
 | **App Store RSS caps at 500/country** | Cannot pull years of history in one call | Run periodically; reviews accumulate in manifest over time |
 | **Play Store returns same `reviewId` across locales** | Heavy in-batch dedup (~80% drop rate) | Expected behavior; dedup is correct |
-| **Local FS storage** | Not suitable for multi-machine production | Swap `RawDataLake` for S3 / MinIO in Phase 5 |
+| **Local FS storage (raw lake)** | Not suitable for multi-machine production | Swap `RawDataLake` for S3 / MinIO; Phase 5 adds DuckDB + Chroma locally |
 | **No language detection yet** | Multilingual reviews not tagged | Added in Phase 2 (preprocessing) |
 | **No PII redaction yet** | Authors stored as-is (already public) | Added in Phase 2 (preprocessing) |
 
@@ -691,19 +769,359 @@ A few of the biggest, most actionable clusters:
 | 26 | 20 | 50% | listening_behavior | negative | Shuffle repeats same song rotation |
 | 29 | 18 | 89% | discovery | positive | Increase playlist pin limit for dark themes |
 
-These are the exact PM-actionable themes Phase 4 will turn into insight cards.
+These clusters are the direct input to Phase 4 insight card generation.
 
 ---
 
-## 14. Next Steps (Phase 4+)
+## 14. Phase 4 — Insight Generation (PM-ready cards)
 
-Per [`architecture.md`](architecture.md):
+Phase 4 turns each Phase-3 topic cluster into a **PM-ready insight card** — the deliverable described in [`architecture.md`](architecture.md) §Phase 4. Each card includes a title, narrative, severity, trend, affected segments, evidence quotes, and a suggested product opportunity.
 
-- **Phase 4 — Insight Generation (PM-ready cards)**: feed each Phase-3 cluster's top quotes + stats to Groq → emit a JSON "insight card" with title, severity, evidence, affected segments, and a suggested opportunity.
-- **Phase 5 — Storage & Indexing**: replace the local FS lake with Postgres + a vector DB (pgvector) so the embeddings from Phase 3 are queryable for "show me reviews like this".
-- **Phase 6 — Visualization & Delivery**: Streamlit dashboard backed by `topics.csv` + the vector DB, with a "search by similarity" panel and PM-facing weekly digest export.
+### 14.1 What runs end-to-end
 
-The current `data/processed/topics.csv` is the seed Phase 4 needs.
+| Step | Input | Component | Output |
+|---|---|---|---|
+| 1. Load | `topics.csv`, `insights_with_topics.csv` | `loader.py` | DataFrames + optional review timestamps from raw JSONL |
+| 2. Aggregate | per-cluster reviews | `aggregator.py` | `TopicBundle` (stats, distributions, quotes, trend) |
+| 3. Score | bundles | `scorer.py` | `priority_score` 0–100 (volume × sentiment severity × discovery × trend) |
+| 4. Synthesize | bundle + quotes (RAG) | `generator.py` + Groq | `InsightCard` via LLM (or rule-based fallback) |
+| 5. Persist | cards | `storage.py` | `insight_cards.csv` + `insight_cards.json` |
+
+Architecture components mapped:
+
+| Architecture component | Implementation |
+|---|---|
+| Theme Aggregator | `aggregator.py` — cluster stats + pain/segment/source breakdowns |
+| Pain Point Summarizer | Groq prompt → `narrative` field (2–3 sentences) |
+| Unmet Needs Extractor | Aggregated from Phase-2 `unmet_need` + LLM refinement |
+| Trend Detector | First-half vs second-half review volume using raw `created_at` timestamps |
+| Segment Comparator | `segment_breakdown` in bundle + `segment_notes` in card |
+| Evidence Linker | Up to 8 verbatim quotes + review_ids per card |
+| Priority Scorer | `scorer.py` — ranks cards for PM triage |
+
+### 14.2 Inputs (env variables)
+
+| Var | Default | What it controls |
+|---|---|---|
+| `PHASE4_MIN_TOPIC_SIZE` | `10` | Skip clusters with fewer than N reviews |
+| `PHASE4_MAX_EVIDENCE_QUOTES` | `8` | Max verbatim quotes attached per card |
+| `PHASE4_INCLUDE_NOISE` | `false` | Include BERTopic noise bucket (`topic_id=-1`) |
+| `PHASE4_DISCOVERY_ONLY` | `false` | Only synthesize discovery-heavy clusters |
+| `PHASE4_MIN_DISCOVERY_SHARE_PCT` | `50` | Threshold when `PHASE4_DISCOVERY_ONLY=true` |
+| `PHASE4_USE_LLM_CARDS` | `true` | Use Groq RAG; `false` or `--no-llm` → rule-based only |
+| `INSIGHT_CARDS_CSV` | `insight_cards.csv` | Output CSV path |
+| `INSIGHT_CARDS_JSON` | `insight_cards.json` | Output JSON path |
+| `GROQ_API_KEY` / `GROQ_MODEL` | *(from Phase 2)* | Reused for card synthesis |
+
+### 4.5 Phase 5 — Storage & Indexing
+
+| Var | Default | What it controls |
+|---|---|---|
+| `INDEX_DATA_DIR` | `./data/index` | Root directory for DuckDB, Chroma, and catalog |
+| `PHASE5_WAREHOUSE_DB` | `warehouse.duckdb` | DuckDB filename inside `INDEX_DATA_DIR` |
+| `PHASE5_CATALOG_DB` | `catalog.db` | SQLite catalog filename inside `INDEX_DATA_DIR` |
+| `PHASE5_CHROMA_DIR` | `chroma` | Chroma persistent directory inside `INDEX_DATA_DIR` |
+| `PHASE5_CHROMA_COLLECTION` | `review_embeddings` | Chroma collection name |
+| `PHASE5_DEFAULT_SEARCH_K` | `10` | Default top-k for semantic search |
+| `EMBED_MODEL` | *(from Phase 3)* | Reused to embed query strings at search time |
+
+### 4.6 Phase 6 — Visualization & Delivery
+
+| Var | Default | What it controls |
+|---|---|---|
+| `PHASE6_APP_TITLE` | `Spotify Review Discovery Engine` | Browser tab / sidebar title |
+| `PHASE6_DEFAULT_CARD_LIMIT` | `53` | Max cards loaded in dashboard |
+| `PHASE6_DEFAULT_SEARCH_K` | `10` | Default semantic search results in UI |
+| `PHASE6_CHAT_CONTEXT_K` | `8` | Reviews retrieved for RAG chat context |
+| `PHASE6_ENABLE_CHAT` | `true` | Show/hide the Ask the Reviews page |
+| `PHASE6_EXPORT_DIR` | `./data/exports` | Where one-click digest exports are saved |
+| `GROQ_API_KEY` / `GROQ_MODEL` | *(from Phase 2)* | Reused for RAG chat synthesis |
+
+### 14.3 Output schema (`InsightCard`)
+
+Matches the architecture's insight card JSON:
+
+```json
+{
+  "insight_id": "INS-007",
+  "topic_id": 7,
+  "title": "Discover Weekly lacks genre filtering",
+  "theme": "Recommendation Quality",
+  "narrative": "47 users discuss Discover Weekly customization...",
+  "severity": "medium",
+  "trend": "stable",
+  "priority_score": 28.4,
+  "affected_segments": ["unknown", "heavy"],
+  "top_unmet_needs": ["genre filters for Discover Weekly"],
+  "evidence_quotes": ["..."],
+  "evidence_review_ids": ["reddit:rss_t3_..."],
+  "supporting_review_count": 47,
+  "discovery_share_pct": 91.5,
+  "negative_share_pct": 12.0,
+  "top_sources": ["social_media", "reddit"],
+  "top_pain_category": "recommendation_quality",
+  "suggested_opportunity": "Add genre/mood filters to Discover Weekly",
+  "segment_notes": "Most vocal segments: unknown (40), heavy (3)",
+  "model_used": "llama-3.1-8b-instant",
+  "generated_at": "2026-06-23T..."
+}
+```
+
+Cards are sorted by `priority_score` descending in both CSV and JSON outputs.
+
+### 14.4 CLI
+
+```bash
+# Default — Groq RAG cards from all clusters >= 10 reviews
+python run_phase4.py
+
+# Offline / no API quota — rule-based cards from aggregated stats (~3 s)
+python run_phase4.py --no-llm
+
+# Only discovery-heavy clusters
+python run_phase4.py --discovery-only
+
+# Skip small clusters
+python run_phase4.py --min-topic-size 20
+
+# Override Groq model
+python run_phase4.py -m llama-3.1-8b-instant
+
+python run_phase4.py --json
+```
+
+Inspect results:
+
+```bash
+python inspect_cards.py              # top 15 by priority
+python inspect_cards.py --top 30
+python inspect_cards.py --card INS-026   # full detail for Shuffle topic
+```
+
+### 14.5 Reliability features
+
+| Feature | Implementation |
+|---|---|
+| Rule-based fallback | Every topic gets a card even if Groq is down — `model_used=rule-based` |
+| LLM circuit breaker | After 5 consecutive Groq failures, remaining topics use rule-based synthesis |
+| Single-shot LLM calls | No retry loops on labeling (prevents 30+ min hangs on JSON-mode failures) |
+| Timestamp-backed trends | Joins raw JSONL for `created_at`; falls back to `trend=unknown` gracefully |
+| Schema validation | Pydantic `InsightCard` enforced before write; bad LLM JSON → rule-based card |
+
+### 14.6 First-run results (2026-06-23)
+
+| Metric | Value |
+|---|---|
+| Topics on disk | 60 (59 real + 1 noise) |
+| Bundles synthesized (size ≥ 10) | **53** |
+| Insight cards written | **53** |
+| Timestamps loaded | 1,924 reviews from raw JSONL |
+| Rule-based runtime | **2.8 s** |
+| LLM runtime | ~3–8 min (53 Groq calls, model-dependent) |
+
+Top priority cards (rule-based scoring):
+
+| ID | Priority | Severity | Reviews | Title |
+|---|---|---|---|---|
+| INS-000 | 37.3 | low | 107 | Users switching to Tidal over Spotify Wrapped |
+| INS-002 | 35.1 | low | 75 | Users request personalized music recommendations |
+| INS-007 | 28.4 | low | 47 | Discover Weekly lacks genre filtering |
+| INS-026 | 22.1 | medium | 20 | Shuffle repeats same song rotation |
+| INS-025 | 21.8 | medium | 20 | Users frustrated by premium restrictions and cost |
+| INS-011 | 21.5 | medium | 30 | Reduce ad frequency in app |
+
+Re-run with LLM when Groq quota is available for richer narratives:
+
+```bash
+python run_phase4.py -m llama-3.1-8b-instant
+```
+
+---
+
+## 15. Phase 5 — Storage & Indexing
+
+Phase 5 consolidates all prior outputs into **queryable stores** — the foundation for Phase 6 dashboards and RAG chatbots. Per [`architecture.md`](architecture.md) §Phase 5, we implement:
+
+| Architecture target | MVP implementation |
+|---|---|
+| Processed warehouse | **DuckDB** (`warehouse.duckdb`) |
+| Vector DB for semantic search | **Chroma** (persistent, local) |
+| Insight card store | `insight_cards` table in DuckDB |
+| Metadata catalog | **SQLite** (`catalog.db`) — index runs + model versions |
+
+Production upgrade path: DuckDB → Postgres/BigQuery, Chroma → pgvector.
+
+### 15.1 What runs end-to-end
+
+| Step | Input | Component | Output |
+|---|---|---|---|
+| 1. Load | raw JSONL, insights.csv, topics, cards, embeddings | `loaders.py` | DataFrames + numpy matrix |
+| 2. Dedupe | insights.csv (409 duplicate rows) | `loaders.py` | 2,277 unique insights |
+| 3. Enrich | insights_with_topics + raw timestamps | `loaders.py` | `reviews_enriched` with source/sentiment/topic |
+| 4. Warehouse | all tables | `warehouse.py` | DuckDB rebuild (drop + reload) |
+| 5. Vector index | `embeddings.npy` + metadata | `vector_index.py` | Chroma collection (2,070 vectors) |
+| 6. Catalog | run stats + model versions | `catalog.py` | SQLite `index_runs` row |
+| 7. Query | natural language / filters | `query.py` | ranked hits, card lists, stats |
+
+Architecture components mapped:
+
+| Architecture component | Implementation |
+|---|---|
+| Processed warehouse | `DuckDBWarehouse` — 5 tables + `v_cards_with_topics` view |
+| Vector DB | `VectorIndex` — Chroma persistent client, cosine similarity |
+| Insight card store | `insight_cards` table + `QueryEngine.list_cards()` / `get_card()` |
+| Metadata catalog | `MetadataCatalog` — `index_runs`, `model_versions` in SQLite |
+| Semantic search | `QueryEngine.semantic_search()` — embed query → Chroma → DuckDB join |
+| Structured filters | `QueryEngine.filter_reviews()` — source, sentiment, topic, discovery |
+
+### 15.2 Inputs (env variables)
+
+See [§4.5](#45-phase-5--storage--indexing). No new API keys required — reuses Phase 3 embedder for query-time encoding.
+
+### 15.3 CLI commands
+
+```bash
+# Build full index (DuckDB + Chroma + catalog)
+python run_phase5.py
+
+# DuckDB only — skip Chroma rebuild
+python run_phase5.py --skip-vectors
+
+# Machine-readable summary
+python run_phase5.py --json
+
+# Semantic search (loads embedder on first call ~90s, then fast)
+python search_reviews.py "discover weekly genre filter"
+
+# Structured filters
+python search_reviews.py --filter --source reddit --sentiment negative
+python search_reviews.py --filter --topic 26 --discovery-only
+
+# Insight cards
+python search_reviews.py --cards --severity high
+python search_reviews.py --card INS-007
+
+# Index statistics
+python search_reviews.py --stats
+```
+
+### 15.4 Query API (`QueryEngine`)
+
+Programmatic access for Phase 6 dashboard:
+
+```python
+from src.phase5_storage import QueryEngine
+
+engine = QueryEngine()
+
+# Natural-language search with optional metadata filters
+hits = engine.semantic_search("shuffle repeats same songs", k=5, sentiment="negative")
+
+# SQL-style filters over enriched reviews
+df = engine.filter_reviews(source="reddit", topic_id=26, limit=20)
+
+# PM triage — cards ranked by priority
+cards = engine.list_cards(severity="high", min_priority=20.0)
+card = engine.get_card("INS-007")
+
+stats = engine.stats()  # row counts per store
+engine.close()
+```
+
+### 15.5 First-run results (2026-06-23)
+
+| Metric | Value |
+|---|---|
+| Index build time | **6.6 s** |
+| Raw reviews indexed | 2,277 |
+| Insights (deduped) | 2,277 |
+| Enriched reviews | 2,070 |
+| Topics | 60 |
+| Insight cards | 53 |
+| Vectors in Chroma | 2,070 |
+| Catalog run id | 1 |
+
+Semantic search sanity check — query `"discover weekly genre filter"` returned top hit at **0.843** similarity, correctly mapped to topic *Discover Weekly lacks genre filtering*.
+
+Re-run after any Phase 1–4 refresh:
+
+```bash
+python run_phase5.py
+```
+
+---
+
+## 16. Phase 6 — Visualization & Delivery
+
+Phase 6 delivers insights in a **PM-usable format** — the delivery layer described in [`architecture.md`](architecture.md) §Phase 6. The MVP is a **Streamlit dashboard** backed by the Phase-5 `QueryEngine`, with Plotly charts and one-click export.
+
+### 16.1 Architecture mapping
+
+| Architecture component | Implementation |
+|---|---|
+| Insight Dashboard | `app.py` → **Overview** page (KPIs, priority bar, severity pie, themes) |
+| Segment Explorer | **Segments** page — sentiment stacks, pain heatmap, source sunburst |
+| Topic Trend Charts | **Trends** page — monthly volume per cluster (where timestamps exist) |
+| Review Search UI | **Search** page — semantic search + structured filters |
+| Insight Report Generator | **Export** page — Markdown download + save to `data/exports/` |
+| Chatbot (optional) | **Ask the Reviews** — RAG via Chroma retrieval + Groq synthesis |
+| Alerting | Not in MVP — future: Slack webhook on high-severity new cards |
+
+### 16.2 Module layout
+
+| File | Role |
+|---|---|
+| `config.py` | Dashboard title, search defaults, export dir, chat toggle |
+| `data.py` | `DashboardData` — analytics SQL + wraps `QueryEngine` |
+| `charts.py` | Plotly figures (Spotify-dark theme) |
+| `export.py` | Weekly digest as Markdown + JSON |
+| `chat.py` | `ReviewChatbot` — semantic retrieval + Groq answer |
+| `app.py` | Streamlit UI with 8 sidebar pages |
+
+### 16.3 Dashboard pages
+
+| Page | What PMs see |
+|---|---|
+| **Overview** | Corpus KPIs, top cards by priority, severity/theme charts, increasing trends |
+| **Insight Cards** | Filterable card table + full detail (narrative, evidence, opportunity) |
+| **Topics** | Cluster size chart + drill-down into representative reviews |
+| **Segments** | Sentiment by segment, source sunburst, pain-category heatmap |
+| **Trends** | Multi-select time-series for top topic clusters |
+| **Search** | Natural-language semantic search or structured filter mode |
+| **Ask the Reviews** | Chat UI with retrieved review context |
+| **Export** | Download Markdown digest or save to `data/exports/` |
+
+### 16.4 CLI
+
+```bash
+# Prerequisites: Phases 1–5 complete (especially run_phase5.py)
+python run_dashboard.py
+
+# Custom port
+python run_dashboard.py --port 8502
+```
+
+Opens `http://localhost:8501` by default.
+
+### 16.5 Export format
+
+The **Export** page generates a PM-ready digest:
+
+- **Markdown** — headings per card, priority/severity/trend, narrative, opportunity, evidence quotes (paste into Notion/Confluence)
+- **JSON** — `{ generated_at, stats, cards[] }` for APIs or scheduled jobs
+
+Saved exports land in `data/exports/insight_digest_<timestamp>.{md,json}`.
+
+### 16.6 Future enhancements (post-MVP)
+
+Per architecture, production delivery may add:
+
+- Slack/email alerting when new high-severity themes emerge
+- PDF export (via WeasyPrint or reportlab)
+- Next.js frontend for embedded analytics
+- Scheduled weekly digest cron
+
+The six-phase pipeline is now **end-to-end complete** from raw collection through PM-facing delivery.
 
 ---
 
@@ -718,11 +1136,18 @@ copy .env.example .env           # then fill in REDDIT_CLIENT_ID/SECRET (optiona
 python run_phase1.py             # all sources -> data/raw/*.jsonl
 python run_phase2.py              # AI analysis -> data/processed/insights.csv
 python run_phase3.py              # clustering   -> data/processed/topics.csv
+python run_phase4.py              # insight cards -> data/processed/insight_cards.csv
+python run_phase5.py              # index build   -> data/index/
 
 # Inspect
 python inspect_runs.py            # raw corpus totals (Phase 1)
 python check_coverage.py          # Phase 2 coverage report
 python inspect_topics.py          # top clusters (Phase 3)
-python inspect_topics.py --topic 0  # deep-dive into one cluster
-type logs\phase3_clustering.log   # Windows (use `tail -f` on macOS/Linux)
+python inspect_cards.py           # top insight cards by priority (Phase 4)
+python inspect_cards.py --card INS-007
+python search_reviews.py --stats  # index row counts (Phase 5)
+python search_reviews.py "shuffle repeats same songs"
+python search_reviews.py --cards --severity high
+python run_dashboard.py           # Streamlit PM dashboard (Phase 6)
+type logs\phase5_storage.log
 ```

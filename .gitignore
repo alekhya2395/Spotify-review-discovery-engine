@@ -8,21 +8,12 @@ env/
 
 # Env / secrets
 .env
-.env.*
-!.env.example
-!.env.local.example
 *.env.local
-
-# Node / Next.js
-node_modules/
-.next/
-out/
 
 # Data & logs
 data/
 logs/
 *.log
-*.npy
 
 # IDE
 .vscode/
