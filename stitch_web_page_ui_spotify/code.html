@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Spotify Review Discovery Engine Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            app: {
+              bg: '#000000',
+              panel: '#121212',
+              border: '#282828',
+              text: '#FFFFFF',
+              muted: '#A7A7A7',
+              green: '#1ED760',
+            },
+            sentiment: {
+              positive: '#1ED760',
+              negative: '#E91429',
+              neutral: '#71717A',
+              mixed: '#FACC15',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-utilities">
+    /* Custom styling for the donut chart */
+    .donut-chart {
+      background: conic-gradient(
+        #1ED760 0% 24%,
+        #E91429 24% 66%,
+        #71717A 66% 88%,
+        #FACC15 88% 100%
+      );
+      border-radius: 50%;
+      position: relative;
+    }
+    .donut-chart::after {
+      content: "";
+      position: absolute;
+      inset: 22%;
+      background-color: #121212;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    /* Scrollbar styling for a cleaner look if content overflows */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #000000;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #282828;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3E3E3E;
+    }
+  </style>
+</head>
+<body class="bg-app-bg text-app-text font-sans antialiased min-h-screen flex flex-col overflow-x-hidden">
+<!-- BEGIN: MainHeader -->
+<header class="border-b border-app-border bg-app-bg px-6 h-16 flex items-center justify-between shrink-0">
+<!-- Logo -->
+<div class="flex items-center gap-3">
+<svg class="w-8 h-8 fill-app-green" viewbox="0 0 24 24">
+<path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.24 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.239.54-.959.72-1.56.3z"></path>
+</svg>
+<div class="font-bold text-lg leading-tight tracking-tight">
+<div>Spotify Review</div>
+<div class="text-app-green">Discovery Engine</div>
+</div>
+</div>
+<!-- Navigation -->
+<nav class="flex items-center gap-8 h-full">
+<a class="text-app-green font-medium relative h-full flex items-center" href="#">
+        Dashboard
+        <div class="absolute bottom-0 left-0 w-full h-[2px] bg-app-green"></div>
+</a>
+<a class="text-app-text hover:text-app-muted transition-colors h-full flex items-center" href="#">Insights</a>
+<a class="text-app-text hover:text-app-muted transition-colors h-full flex items-center" href="#">Workflow</a>
+<a class="text-app-text hover:text-app-muted transition-colors h-full flex items-center" href="#">Chat</a>
+</nav>
+<!-- Actions -->
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-app-border transition-colors">
+<svg class="w-5 h-5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24">
+<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+</svg>
+</button>
+</div>
+</header>
+<!-- END: MainHeader -->
+<!-- BEGIN: MainContent -->
+<main class="flex-1 p-6 flex flex-col gap-6 max-w-[1600px] mx-auto w-full">
+<!-- BEGIN: KPICards -->
+<section class="grid grid-cols-4 gap-6" data-purpose="kpi-metrics">
+<!-- Card 1: Total Reviews -->
+<div class="bg-app-panel border border-app-border rounded-lg p-5 flex items-start gap-4">
+<div class="p-2.5 rounded-lg bg-app-bg border border-app-border shrink-0">
+<svg class="w-6 h-6 fill-none stroke-app-green stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24">
+<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+<line x1="9" x2="15" y1="10" y2="10"></line>
+<line x1="9" x2="15" y1="14" y2="14"></line>
+</svg>
+</div>
+<div>
+<h3 class="text-sm text-app-muted font-medium mb-1">Total Reviews Analyzed</h3>
+<p class="text-3xl font-bold tracking-tight">2,740</p>
+</div>
+</div>
+<!-- Card 2: Discovery Related -->
+<div class="bg-app-panel border border-app-border rounded-lg p-5 flex items-start gap-4">
+<div class="p-2.5 rounded-lg bg-app-bg border border-app-border shrink-0">
+<svg class="w-6 h-6 fill-none stroke-app-green stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24">
+<circle cx="11" cy="11" r="8"></circle>
+<line x1="21" x2="16.65" y1="21" y2="16.65"></line>
+</svg>
+</div>
+<div>
+<h3 class="text-sm text-app-muted font-medium mb-1">Discovery Related</h3>
+<p class="text-3xl font-bold tracking-tight">384</p>
+</div>
+</div>
+<!-- Card 3: Top Pain Category -->
+<div class="bg-app-panel border border-app-border rounded-lg p-5 flex items-start gap-4">
+<div class="p-2.5 rounded-lg bg-app-bg border border-app-border shrink-0">
+<svg class="w-6 h-6 fill-none stroke-app-green stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24">
+<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+<line x1="12" x2="12" y1="9" y2="13"></line>
+<line x1="12" x2="12.01" y1="17" y2="17"></line>
+</svg>
+</div>
+<div>
+<h3 class="text-sm text-app-muted font-medium mb-1">Top Pain Category</h3>
+<p class="text-2xl font-bold tracking-tight mt-1 leading-none">Algorithm Repetition</p>
+</div>
+</div>
+<!-- Card 4: Avg Sentiment -->
+<div class="bg-app-panel border border-app-border rounded-lg p-5 flex items-start gap-4">
+<div class="p-2.5 rounded-lg bg-app-bg border border-app-border shrink-0">
+<svg class="w-6 h-6 fill-none stroke-app-green stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<line x1="8" x2="16" y1="15" y2="15"></line>
+<line x1="9" x2="9.01" y1="9" y2="9"></line>
+<line x1="15" x2="15.01" y1="9" y2="9"></line>
+</svg>
+</div>
+<div>
+<h3 class="text-sm text-app-muted font-medium mb-1">Avg Sentiment</h3>
+<p class="text-3xl font-bold tracking-tight">-0.42</p>
+</div>
+</div>
+</section>
+<!-- END: KPICards -->
+<!-- BEGIN: ChartsSection -->
+<section class="grid grid-cols-[1.5fr_1fr] gap-6 h-[340px]" data-purpose="charts">
+<!-- Pain Categories Bar Chart -->
+<div class="bg-app-panel border border-app-border rounded-lg p-5 flex flex-col">
+<div class="flex items-center gap-2 mb-6">
+<h2 class="text-lg font-semibold">Pain Categories</h2>
+<svg class="w-4 h-4 stroke-app-muted fill-none stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<line x1="12" x2="12" y1="16" y2="12"></line>
+<line x1="12" x2="12.01" y1="8" y2="8"></line>
+</svg>
+</div>
+<div class="flex-1 relative flex">
+<!-- Y-Axis Labels -->
+<div class="w-36 flex flex-col justify-between text-sm text-app-text font-medium pr-4 pb-6 z-10">
+<div class="flex-1 flex items-center justify-end text-right">Algorithm Repetition</div>
+<div class="flex-1 flex items-center justify-end text-right">UI/UX Issues</div>
+<div class="flex-1 flex items-center justify-end text-right">Pricing Complaints</div>
+<div class="flex-1 flex items-center justify-end text-right">Content Availability</div>
+<div class="flex-1 flex items-center justify-end text-right">Listening Behavior</div>
+<div class="flex-1 flex items-center justify-end text-right">Social Features</div>
+</div>
+<!-- Chart Area -->
+<div class="flex-1 relative pb-6 border-l border-app-border">
+<!-- Grid Lines & X-Axis Labels -->
+<div class="absolute inset-0 flex justify-between pointer-events-none">
+<div class="h-full border-r border-app-border border-dashed opacity-20 relative"><span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-app-muted">0</span></div>
+<div class="h-full border-r border-app-border border-dashed opacity-20 relative"><span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-app-muted">50</span></div>
+<div class="h-full border-r border-app-border border-dashed opacity-20 relative"><span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-app-muted">100</span></div>
+<div class="h-full border-r border-app-border border-dashed opacity-20 relative"><span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-app-muted">150</span></div>
+<div class="h-full border-r border-app-border border-dashed opacity-20 relative"><span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-app-muted">200</span></div>
+<div class="h-full border-r border-app-border border-dashed opacity-20 relative"><span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-app-muted">250</span></div>
+</div>
+<!-- Bars container -->
+<div class="absolute inset-0 flex flex-col justify-between py-2">
+<div class="flex-1 flex items-center"><div class="h-4 bg-app-green" style="width: 86%;"></div></div>
+<div class="flex-1 flex items-center"><div class="h-4 bg-app-green" style="width: 53%;"></div></div>
+<div class="flex-1 flex items-center"><div class="h-4 bg-app-green" style="width: 35%;"></div></div>
+<div class="flex-1 flex items-center"><div class="h-4 bg-app-green" style="width: 24%;"></div></div>
+<div class="flex-1 flex items-center"><div class="h-4 bg-app-green" style="width: 15%;"></div></div>
+<div class="flex-1 flex items-center"><div class="h-4 bg-app-green" style="width: 10%;"></div></div>
+</div>
+<div class="absolute -bottom-10 left-1/2 -translate-x-1/2 text-xs text-app-muted">Number of Reviews</div>
+</div>
+</div>
+</div>
+<!-- Sentiment Distribution Donut Chart -->
+<div class="bg-app-panel border border-app-border rounded-lg p-5 flex flex-col">
+<div class="flex items-center gap-2 mb-4">
+<h2 class="text-lg font-semibold">Sentiment Distribution</h2>
+<svg class="w-4 h-4 stroke-app-muted fill-none stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<line x1="12" x2="12" y1="16" y2="12"></line>
+<line x1="12" x2="12.01" y1="8" y2="8"></line>
+</svg>
+</div>
+<div class="flex-1 flex items-center justify-center gap-8">
+<!-- Donut Chart -->
+<div class="w-48 h-48 donut-chart shrink-0 relative">
+<!-- Inner Text -->
+<div class="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+<span class="text-2xl font-bold text-white">2,740</span>
+<span class="text-xs text-app-muted">Total Reviews</span>
+</div>
+<!-- Labels overlay (approximate positioning for visual match) -->
+<span class="absolute top-[35%] right-[10%] text-white text-xs font-bold">24%</span>
+<span class="absolute bottom-[15%] left-[45%] text-white text-xs font-bold">42%</span>
+<span class="absolute top-[45%] left-[10%] text-white text-xs font-bold">22%</span>
+<span class="absolute top-[15%] left-[38%] text-black text-xs font-bold">12%</span>
+</div>
+<!-- Legend -->
+<div class="flex flex-col gap-4 min-w-[140px]">
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-sentiment-positive block"></span>
+<span class="text-app-text">Positive (24%)</span>
+</div>
+<span class="text-app-text">658</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-sentiment-negative block"></span>
+<span class="text-app-text">Negative (42%)</span>
+</div>
+<span class="text-app-text">1,151</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-sentiment-neutral block"></span>
+<span class="text-app-text">Neutral (22%)</span>
+</div>
+<span class="text-app-text">603</span>
+</div>
+<div class="flex items-center justify-between text-sm">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-sentiment-mixed block"></span>
+<span class="text-app-text">Mixed (12%)</span>
+</div>
+<span class="text-app-text">328</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- END: ChartsSection -->
+<!-- BEGIN: InsightsTable -->
+<section class="bg-app-panel border border-app-border rounded-lg flex flex-col" data-purpose="data-table">
+<!-- Table Header & Filters -->
+<div class="p-4 border-b border-app-border flex items-center justify-between bg-app-panel rounded-t-lg">
+<h2 class="text-lg font-semibold">Insights</h2>
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 px-3 py-1.5 bg-app-bg border border-app-border rounded text-sm cursor-pointer hover:border-gray-500 transition-colors">
+<span class="text-app-muted">Pain Category</span>
+<span class="text-app-text">All</span>
+<svg class="w-4 h-4 stroke-app-muted fill-none stroke-2 stroke-linecap-round stroke-linejoin-round ml-2" viewbox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-app-bg border border-app-border rounded text-sm cursor-pointer hover:border-gray-500 transition-colors">
+<span class="text-app-muted">Segment</span>
+<span class="text-app-text">All</span>
+<svg class="w-4 h-4 stroke-app-muted fill-none stroke-2 stroke-linecap-round stroke-linejoin-round ml-2" viewbox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 bg-app-bg border border-app-border rounded text-sm cursor-pointer hover:border-gray-500 transition-colors">
+<span class="text-app-muted">Sentiment</span>
+<span class="text-app-text">All</span>
+<svg class="w-4 h-4 stroke-app-muted fill-none stroke-2 stroke-linecap-round stroke-linejoin-round ml-2" viewbox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+</div>
+<button class="flex items-center gap-2 px-3 py-1.5 bg-app-bg border border-app-border rounded text-sm text-app-text hover:bg-app-border transition-colors">
+<svg class="w-4 h-4 stroke-current fill-none stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+            Reset
+          </button>
+</div>
+</div>
+<!-- Table Content -->
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm whitespace-nowrap">
+<thead class="text-app-text border-b border-app-border bg-app-panel">
+<tr>
+<th class="px-5 py-3 font-medium" scope="col">Source</th>
+<th class="px-5 py-3 font-medium w-1/3" scope="col">Review Text</th>
+<th class="px-5 py-3 font-medium" scope="col">Pain Category</th>
+<th class="px-5 py-3 font-medium" scope="col">Sentiment</th>
+<th class="px-5 py-3 font-medium" scope="col">Segment</th>
+<th class="px-5 py-3 font-medium" scope="col">Unmet Need</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-app-border">
+<!-- Row 1 -->
+<tr class="hover:bg-app-bg/50 transition-colors">
+<td class="px-5 py-4 flex items-center gap-2">
+<svg class="w-6 h-6 fill-[#1C96E8]" viewbox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm10.74 15.6l-1.63-4.66H9.86l-1.62 4.66H6.67L11.3 4h1.42l4.63 13.6h-1.61zm-4.44-5.91h3.36l-1.68-4.8h-.02l-1.66 4.8z"></path></svg>
+                App Store
+              </td>
+<td class="px-5 py-4 whitespace-normal text-app-text">The same songs keep playing over and over again. Discover Weekly isn't discovering anything.</td>
+<td class="px-5 py-4 text-app-text">Algorithm Repetition</td>
+<td class="px-5 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-sentiment-negative text-sentiment-negative text-xs font-medium bg-sentiment-negative/10">
+<svg class="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="8" x2="16" y1="15" y2="15"></line><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line></svg>
+                  Negative
+                </span>
+</td>
+<td class="px-5 py-4 text-app-text">Free Users</td>
+<td class="px-5 py-4 whitespace-normal text-app-text">More variety and less repetition in recommendations</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-app-bg/50 transition-colors">
+<td class="px-5 py-4 flex items-center gap-2">
+<svg class="w-6 h-6" fill="none" viewbox="0 0 24 24"><path d="M3 3v18l15-9-15-9z" fill="#4285F4"></path><path d="M18 12l-6-3.6-9 5.4 15-1.8z" fill="#EA4335"></path><path d="M18 12l-6 3.6-9-5.4 15 1.8z" fill="#FBBC04"></path><path d="M3 3v18l9-5.4-9-5.4z" fill="#34A853"></path></svg>
+                Google Play
+              </td>
+<td class="px-5 py-4 whitespace-normal text-app-text">The UI is confusing. Too many clicks to find simple things.</td>
+<td class="px-5 py-4 text-app-text">UI/UX Issues</td>
+<td class="px-5 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-sentiment-negative text-sentiment-negative text-xs font-medium bg-sentiment-negative/10">
+<svg class="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="8" x2="16" y1="15" y2="15"></line><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line></svg>
+                  Negative
+                </span>
+</td>
+<td class="px-5 py-4 text-app-text">All Users</td>
+<td class="px-5 py-4 whitespace-normal text-app-text">Simpler, more intuitive user experience</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-app-bg/50 transition-colors">
+<td class="px-5 py-4 flex items-center gap-2">
+<svg class="w-6 h-6 fill-[#1C96E8]" viewbox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm10.74 15.6l-1.63-4.66H9.86l-1.62 4.66H6.67L11.3 4h1.42l4.63 13.6h-1.61zm-4.44-5.91h3.36l-1.68-4.8h-.02l-1.66 4.8z"></path></svg>
+                App Store
+              </td>
+<td class="px-5 py-4 whitespace-normal text-app-text">Premium is getting too expensive for what you get.</td>
+<td class="px-5 py-4 text-app-text">Pricing Complaints</td>
+<td class="px-5 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-sentiment-negative text-sentiment-negative text-xs font-medium bg-sentiment-negative/10">
+<svg class="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="8" x2="16" y1="15" y2="15"></line><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line></svg>
+                  Negative
+                </span>
+</td>
+<td class="px-5 py-4 text-app-text">Premium Users</td>
+<td class="px-5 py-4 whitespace-normal text-app-text">Better value and more affordable pricing options</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-app-bg/50 transition-colors">
+<td class="px-5 py-4 flex items-center gap-2">
+<svg class="w-6 h-6" fill="none" viewbox="0 0 24 24"><path d="M3 3v18l15-9-15-9z" fill="#4285F4"></path><path d="M18 12l-6-3.6-9 5.4 15-1.8z" fill="#EA4335"></path><path d="M18 12l-6 3.6-9-5.4 15 1.8z" fill="#FBBC04"></path><path d="M3 3v18l9-5.4-9-5.4z" fill="#34A853"></path></svg>
+                Google Play
+              </td>
+<td class="px-5 py-4 whitespace-normal text-app-text">Can't find many of the songs I want. Missing lots of local music.</td>
+<td class="px-5 py-4 text-app-text">Content Availability</td>
+<td class="px-5 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-sentiment-neutral text-sentiment-neutral text-xs font-medium bg-sentiment-neutral/10">
+<svg class="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="8" x2="16" y1="12" y2="12"></line><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line></svg>
+                  Neutral
+                </span>
+</td>
+<td class="px-5 py-4 text-app-text">Music Explorers</td>
+<td class="px-5 py-4 whitespace-normal text-app-text">Wider and more diverse content library</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-app-bg/50 transition-colors">
+<td class="px-5 py-4 flex items-center gap-2">
+<svg class="w-6 h-6 stroke-app-muted fill-none stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" x2="22" y1="12" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                Web Review
+              </td>
+<td class="px-5 py-4 whitespace-normal text-app-text">I listen to podcasts but Spotify keeps pushing music I'm not interested in.</td>
+<td class="px-5 py-4 text-app-text">Listening Behavior</td>
+<td class="px-5 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-sentiment-mixed text-sentiment-mixed text-xs font-medium bg-sentiment-mixed/10">
+<svg class="w-3.5 h-3.5 fill-none stroke-current stroke-2 stroke-linecap-round stroke-linejoin-round" viewbox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="8" x2="16" y1="15" y2="15"></line><line x1="9" x2="9.01" y1="9" y2="9"></line><line x1="15" x2="15.01" y1="9" y2="9"></line></svg>
+                  Mixed
+                </span>
+</td>
+<td class="px-5 py-4 text-app-text">Podcast Listeners</td>
+<td class="px-5 py-4 whitespace-normal text-app-text">Better separation and personalization between content types</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- END: InsightsTable -->
+</main>
+<!-- END: MainContent -->
+</body></html>
