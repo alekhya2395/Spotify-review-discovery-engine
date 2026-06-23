@@ -1,0 +1,41 @@
+# Phase 1 — Data Collection + Phase 2 — AI Analysis + Phase 3 — Clustering deps
+
+# Core
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+python-dotenv>=1.0.1
+loguru>=0.7.2
+tenacity>=8.3.0
+pyyaml>=6.0.1
+
+# HTTP / scraping
+requests>=2.32.0
+beautifulsoup4>=4.12.3
+lxml>=5.2.0
+
+# Source connectors (Phase 1)
+google-play-scraper>=1.2.7
+praw>=7.7.1
+# App Store reviews are fetched via Apple's public iTunes RSS feed
+# (no third-party lib needed; uses `requests`)
+
+# Data handling
+pandas>=2.2.2
+pyarrow>=16.1.0
+
+# CLI
+typer>=0.12.3
+rich>=13.7.1
+
+# Phase 2 — LLM client (Groq + Llama 3.3 70B / gpt-oss-20b / etc.)
+groq>=0.11.0
+
+# Phase 3 — Topic Modeling & Clustering
+# Embeddings (all-MiniLM-L6-v2 runs CPU-only, ~80 MB model)
+sentence-transformers>=3.0.0
+# BERTopic bundles UMAP + HDBSCAN + c-TF-IDF for end-to-end topic modeling
+bertopic>=0.16.3
+umap-learn>=0.5.6
+hdbscan>=0.8.33
+scikit-learn>=1.4.0
+numpy>=1.26.0

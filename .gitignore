@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+!.env.local.example
+*.env.local
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Data & logs
+data/
+logs/
+*.log
+*.npy
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
