@@ -27,6 +27,16 @@ TEXT_COLS = (
     "source",
 )
 
+_SEARCH_STOPWORDS = frozenset({
+    "what", "when", "where", "which", "who", "why", "how", "does", "do", "did",
+    "are", "is", "was", "were", "the", "and", "for", "with", "about", "from",
+    "that", "this", "those", "these", "have", "has", "had", "can", "could",
+    "would", "should", "will", "been", "being", "most", "more", "some", "such",
+    "than", "then", "also", "just", "only", "very", "much", "many", "often",
+    "users", "user", "spotify", "music", "tell", "explain", "describe", "list",
+    "show", "common", "main", "top", "biggest", "issues", "issue", "problem",
+})
+
 # Strip internal review IDs from model output (e.g. app_store:14207861013).
 REVIEW_ID_PATTERN = re.compile(
     r"(?:\b(?:review[_\s-]?id[:\s]*)?)?"
@@ -56,8 +66,9 @@ def _text_search(df: pd.DataFrame, question: str, k: int = 20) -> pd.DataFrame:
 
     needle = question.strip().lower()
     tokens = [t for t in needle.replace("?", " ").split() if len(t) > 2]
+    tokens = [t for t in tokens if t not in _SEARCH_STOPWORDS]
     if not tokens:
-        tokens = [needle]
+        tokens = [t for t in needle.replace("?", " ").split() if len(t) > 2]
 
     cols = [c for c in TEXT_COLS if c in df.columns]
     if not cols:

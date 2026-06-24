@@ -10,6 +10,7 @@ Sections:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -24,6 +25,15 @@ from pydantic import BaseModel, Field
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from rag import build_review_context  # noqa: E402
+from format_labels import (  # noqa: E402
+    FOCUS_AREA_BY_TOPIC,
+    PAIN_INSIGHT,
+    detect_topic,
+    format_pain,
+    format_segment,
+    is_noisy_theme,
+    pain_lines,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -31,7 +41,7 @@ logger = logging.getLogger(__name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant")
 GROQ_FALLBACK_MODEL = os.getenv("GROQ_CHAT_FALLBACK_MODEL", "llama-3.1-8b-instant")
-GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "12"))
+GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "20"))
 
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_CHARS = 600
@@ -563,37 +573,325 @@ def _trim_history(history: list[dict] | None, question: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Intent-based fallback — question-specific answers when Groq is unavailable
+# Data-grounded local answers — works for ANY question using matched reviews
 # ---------------------------------------------------------------------------
 
+_STOPWORDS = frozenset({
+    "what", "when", "where", "which", "who", "whom", "whose", "why", "how",
+    "does", "do", "did", "are", "is", "was", "were", "the", "and", "for",
+    "with", "about", "from", "that", "this", "those", "these", "into", "your",
+    "their", "they", "them", "have", "has", "had", "can", "could", "would",
+    "should", "will", "been", "being", "most", "more", "some", "such", "than",
+    "then", "also", "just", "only", "very", "much", "many", "often", "users",
+    "user", "spotify", "music", "tell", "explain", "describe", "list", "show",
+})
 
-def _intent_fallback_answer(question: str) -> str:
-    """Return a question-tailored 4-section answer from the intent library."""
-    intent = _detect_intent(question)
-    logger.info("chat fallback intent=%s question=%r", intent, question[:80])
-    text = FALLBACK_ANSWERS.get(intent, FALLBACK_ANSWERS["general"])
-    return _strip_numbers_and_quotes(text)
+
+def _question_focus_label(question: str) -> str:
+    q = question.strip().rstrip("?").strip()
+    if not q:
+        return "your question"
+    return q[0].upper() + q[1:] if len(q) > 1 else q.upper()
 
 
-def _is_generic_local_answer(text: str) -> bool:
-    """Detect the old data-template answers that ignore the question topic."""
+def _question_tokens(question: str) -> list[str]:
+    tokens = [t for t in re.split(r"\W+", question.lower()) if len(t) > 2]
+    return [t for t in tokens if t not in _STOPWORDS]
+
+
+def _theme_relevance(theme: dict[str, Any], question: str) -> int:
+    tokens = _question_tokens(question)
+    if not tokens:
+        return 0
+    score = 0
+    blob = " ".join(
+        str(theme.get(k) or "")
+        for k in ("theme_name", "summary", "what_users_want", "dominant_segment")
+    ).lower()
+    for token in tokens:
+        if token in blob:
+            score += 3
+    return score
+
+
+def _actions_from_question(question: str, topic: str, pain_keys: list[str]) -> list[str]:
+    q = question.lower()
+    actions: list[str] = []
+
+    if any(w in q for w in ("skip", "dismiss", "ignore", "reject", "hide")):
+        actions.append("Strengthen negative feedback signals when users skip or dismiss recommendations.")
+    if any(w in q for w in ("improve", "better", "fix", "enhance", "solve")):
+        actions.append("Translate the top complaints behind this question into a focused product experiment.")
+    if any(w in q for w in ("leave", "churn", "cancel", "quit", "switch")):
+        actions.append("Address retention drivers behind exit feedback before adding new surface area.")
+    if any(w in q for w in ("podcast", "audiobook", "spoken")):
+        actions.append("Audit podcast and spoken-word discovery flows separately from music recommendations.")
+    if any(w in q for w in ("offline", "download")):
+        actions.append("Improve offline download reliability, storage management, and playback parity.")
+    if any(w in q for w in ("ad", "ads", "free tier", "free plan")):
+        actions.append("Test ad pacing changes that protect active discovery sessions on the free tier.")
+
+    topic_actions: dict[str, list[str]] = {
+        "discovery": [
+            "Launch a dedicated Explore experience for music outside the user's taste profile.",
+            "Add discovery-intensity controls so users can request more novelty in playlists.",
+        ],
+        "repetition": [
+            "Introduce loop-detection nudges when repetitive listening patterns are detected.",
+            "Redesign autoplay to gradually increase novelty after repeated plays.",
+        ],
+        "pricing": [
+            "Run value-perception research on which Premium features justify subscription cost.",
+            "Simplify family and student verification to reduce plan enrollment friction.",
+        ],
+        "ui": [
+            "Reduce tap count on high-frequency flows such as save, share, and queue.",
+            "Ship major UI changes gradually with opt-in preview periods.",
+        ],
+        "performance": [
+            "Prioritize crash-free playback as a non-negotiable reliability metric.",
+            "Profile and optimize library and search loading on low-end devices.",
+        ],
+        "social": [
+            "Expand collaborative playlists with real-time friend activity signals.",
+            "Launch a lightweight social discovery feed for trusted connections.",
+        ],
+        "catalog": [
+            "Show catalog availability clearly in search results and artist pages.",
+            "Prioritize closing high-impact regional catalog gaps surfaced in reviews.",
+        ],
+        "audio": [
+            "Make audio quality settings easier to discover and compare across plans.",
+            "Improve Bluetooth handoff and wireless playback consistency.",
+        ],
+        "segment": [
+            "Segment onboarding and recommendations by listening style and subscription tier.",
+            "Build distinct discovery paths for casual listeners versus power users.",
+        ],
+    }
+
+    for act in topic_actions.get(topic, topic_actions.get("discovery", [])):
+        if act not in actions:
+            actions.append(act)
+
+    for key in pain_keys[:2]:
+        label = format_pain(key)
+        actions.append(f"Run a targeted review of {label.lower()} complaints tied to this question.")
+
+    if not actions:
+        actions = list(FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]))[:3]
+
+    return actions[:4]
+
+
+def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
+    """Build a question-specific 4-section answer from matched reviews and themes."""
+    stats = payload.get("dataset_stats") or {}
+    reviews = payload.get("matched_reviews") or []
+    themes = payload.get("themes") or []
+    topic = detect_topic(question)
+    focus = _question_focus_label(question)
+
+    pain_keys: list[str] = []
+    for rev in reviews[:12]:
+        key = str(rev.get("pain_category") or "").lower()
+        if key and key not in {"none", "nan"} and key not in pain_keys:
+            pain_keys.append(key)
+    if not pain_keys:
+        pain_keys = [k for k, _, _ in pain_lines(stats, question, limit=4, require_relevant=True)]
+    if not pain_keys:
+        pain_keys = [k for k, _, _ in pain_lines(stats, question, limit=4, require_relevant=False)]
+
+    if pain_keys:
+        labels = [format_pain(k) for k in pain_keys[:3]]
+        if len(labels) == 1:
+            label_text = labels[0]
+        elif len(labels) == 2:
+            label_text = f"{labels[0]} and {labels[1]}"
+        else:
+            label_text = f"{labels[0]}, {labels[1]}, and {labels[2]}"
+        lead = PAIN_INSIGHT.get(pain_keys[0], "")
+        summary = f"Regarding **{focus}**, indexed reviews tie this question to **{label_text}**."
+        if lead:
+            summary += f" {lead}"
+    else:
+        ranked = sorted(themes, key=lambda t: _theme_relevance(t, question), reverse=True)
+        clean = [t for t in ranked if not is_noisy_theme(str(t.get("theme_name") or ""))]
+        if clean:
+            t = clean[0]
+            name = str(t.get("theme_name") or "user feedback").strip()
+            one_line = str(t.get("summary") or "").strip()
+            summary = f"Regarding **{focus}**, reviews cluster around **{name}**."
+            if one_line:
+                summary += f" {one_line}"
+        else:
+            summary = (
+                f"Regarding **{focus}**, user feedback highlights friction across discovery, "
+                "recommendations, and product control that maps to this topic."
+            )
+
+    pain_bullets: list[str] = []
+    seen_pains: set[str] = set()
+    for rev in reviews:
+        if len(pain_bullets) >= 5:
+            break
+        label = format_pain(rev.get("pain_category"))
+        if label in seen_pains or label == "General Feedback":
+            continue
+        key = str(rev.get("pain_category") or "").lower()
+        need = str(rev.get("unmet_need") or "").strip()
+        if need and need.lower() not in {"none", "nan"}:
+            pain_bullets.append(f"- **{label}**: Users want {need.lower().rstrip('.')}.")
+        elif key in PAIN_INSIGHT:
+            pain_bullets.append(f"- **{label}**: {PAIN_INSIGHT[key]}")
+        else:
+            pain_bullets.append(
+                f"- **{label}**: Review feedback describes friction in this area related to the question."
+            )
+        seen_pains.add(label)
+
+    for key, label, _ in pain_lines(stats, question, limit=6, require_relevant=True):
+        if label in seen_pains or len(pain_bullets) >= 5:
+            continue
+        insight = PAIN_INSIGHT.get(key, f"Users describe ongoing friction around {label.lower()}.")
+        pain_bullets.append(f"- **{label}**: {insight}")
+        seen_pains.add(label)
+
+    if len(pain_bullets) < 3:
+        for key, label, _ in pain_lines(stats, question, limit=5, require_relevant=False):
+            if label in seen_pains:
+                continue
+            insight = PAIN_INSIGHT.get(key, f"Users describe ongoing friction around {label.lower()}.")
+            pain_bullets.append(f"- **{label}**: {insight}")
+            seen_pains.add(label)
+            if len(pain_bullets) >= 5:
+                break
+
+    focus_bullets: list[str] = []
+    seen_focus: set[str] = set()
+    ranked_themes = sorted(themes, key=lambda t: _theme_relevance(t, question), reverse=True)
+    for t in ranked_themes:
+        if len(focus_bullets) >= 4:
+            break
+        name = str(t.get("theme_name") or "").strip()
+        if is_noisy_theme(name):
+            continue
+        want = str(t.get("what_users_want") or "").strip()
+        if want:
+            bullet = f"- **{name}**: Prioritize improvements around {want.lower().rstrip('.')}."
+            if bullet not in seen_focus:
+                focus_bullets.append(bullet)
+                seen_focus.add(bullet)
+
+    for rev in reviews:
+        if len(focus_bullets) >= 5:
+            break
+        need = str(rev.get("unmet_need") or "").strip()
+        if need and need.lower() not in {"none", "nan"}:
+            cat = format_pain(rev.get("pain_category"))
+            bullet = f"- **{cat}**: Close the gap on user requests such as {need.lower().rstrip('.')}."
+            if bullet not in seen_focus:
+                focus_bullets.append(bullet)
+                seen_focus.add(bullet)
+
+    for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]):
+        if len(focus_bullets) >= 5:
+            break
+        bullet = f"- **Product direction**: {line}"
+        if bullet not in seen_focus:
+            focus_bullets.append(bullet)
+            seen_focus.add(bullet)
+
+    actions = _actions_from_question(question, topic, pain_keys)
+    parts = [
+        f"**Summary**\n\n{summary}",
+        "**Key pain points**\n\n" + "\n".join(pain_bullets[:5]),
+        "**Product focus areas**\n\n" + "\n".join(focus_bullets[:5]),
+        "**Recommended actions**\n\n" + "\n".join(f"- {a}" for a in actions),
+    ]
+    return _strip_numbers_and_quotes("\n\n".join(parts))
+
+
+def _is_canned_fallback_answer(text: str) -> bool:
+    """Detect static template answers that ignore the specific question."""
     markers = (
+        "Analysis of Spotify user feedback reveals that the most significant areas of concern",
         "Indexed review feedback surfaces recurring themes",
         "Users report ongoing friction related to technical",
         "Prioritize the pain areas most tied to the question asked",
+        "Users struggle to discover new music primarily because the algorithm heavily favors",
+        "The most common frustrations with Spotify's recommendation system center around repetitiveness",
     )
     return any(m in text for m in markers)
 
 
-def _ensure_four_sections(answer: str, question: str) -> str:
-    """Fill any missing sections from the intent-specific fallback."""
+def _ensure_four_sections(answer: str, question: str, payload: dict[str, Any]) -> str:
+    """Fill any missing sections from a data-grounded fallback."""
     sections = _split_into_sections(answer)
-    fallback = _split_into_sections(_intent_fallback_answer(question))
+    fallback = _split_into_sections(_build_data_grounded_answer(question, payload))
     for name in SECTION_ORDER:
         if not sections.get(name) and fallback.get(name):
             sections[name] = fallback[name]
     parts = [f"**{name}**\n\n{sections[name].strip()}" for name in SECTION_ORDER if sections.get(name)]
-    return "\n\n".join(parts) if parts else _intent_fallback_answer(question)
+    return "\n\n".join(parts) if parts else _build_data_grounded_answer(question, payload)
+
+
+def _compact_grounding_payload(payload: dict[str, Any], limit: int = 10) -> str:
+    """Smaller context for a fast Groq retry when the full payload times out."""
+    slim = {
+        "matched_reviews": [
+            {
+                "source": r.get("source"),
+                "pain_category": r.get("pain_category"),
+                "segment": r.get("segment"),
+                "unmet_need": r.get("unmet_need"),
+                "sentiment": r.get("sentiment"),
+            }
+            for r in (payload.get("matched_reviews") or [])[:limit]
+        ],
+        "themes": [
+            {
+                "theme_name": t.get("theme_name"),
+                "summary": t.get("one_line_summary") or t.get("summary"),
+                "what_users_want": t.get("what_users_want"),
+            }
+            for t in (payload.get("themes") or [])[:5]
+            if not is_noisy_theme(str(t.get("theme_name") or ""))
+        ],
+    }
+    return json.dumps(slim, ensure_ascii=False)
+
+
+def _build_groq_messages(
+    question: str,
+    grounding: str,
+    history: list[dict],
+    *,
+    compact: bool = False,
+) -> list[dict]:
+    prefix = "COMPACT CONTEXT — still answer the exact question with all 4 sections.\n\n" if compact else ""
+    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    messages.extend(history)
+    messages.append({
+        "role": "user",
+        "content": (
+            f"QUESTION (answer this exactly — do not give a generic overview):\n{question}\n\n"
+            "Use the review context below. Do NOT cite numbers, counts, or verbatim quotes. "
+            "Follow the required 4-section structure exactly.\n\n"
+            f"{prefix}CONTEXT:\n{grounding}"
+        ),
+    })
+    return messages
+
+
+def _accept_groq_answer(raw: str, question: str) -> str | None:
+    cleaned = _strip_numbers_and_quotes(raw)
+    normalized = _enforce_section_order(cleaned)
+    if len(normalized.strip()) < 80:
+        return None
+    if _is_canned_fallback_answer(normalized):
+        return None
+    return normalized
 
 
 # ---------------------------------------------------------------------------
@@ -673,31 +971,33 @@ def chat(req: ChatRequest) -> ChatResponse:
         )
 
     history = _trim_history(req.history, req.question)
-    trimmed_grounding = grounding[:6000] if len(grounding) > 6000 else grounding
-    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    messages.extend(history)
-    messages.append({
-        "role": "user",
-        "content": (
-            f"QUESTION (answer this exactly — do not give a generic overview):\n{req.question}\n\n"
-            "Use the review context below. Do NOT cite numbers, counts, or verbatim quotes. "
-            "Follow the required 4-section structure exactly.\n\n"
-            f"CONTEXT:\n{trimmed_grounding}"
-        ),
-    })
+    trimmed_grounding = grounding[:8000] if len(grounding) > 8000 else grounding
+    messages = _build_groq_messages(req.question, trimmed_grounding, history)
 
-    raw = _try_groq(messages)
     answer = ""
+    raw = _try_groq(messages)
     if raw:
-        cleaned = _strip_numbers_and_quotes(raw)
-        normalized = _enforce_section_order(cleaned)
-        if len(normalized.strip()) >= 80 and not _is_generic_local_answer(normalized):
-            answer = normalized
+        candidate = _accept_groq_answer(raw, req.question)
+        if candidate:
+            answer = candidate
             if not _has_required_sections(answer):
-                answer = _ensure_four_sections(answer, req.question)
+                answer = _ensure_four_sections(answer, req.question, payload)
 
     if not answer:
-        answer = _intent_fallback_answer(req.question)
+        logger.info("chat: full Groq path unavailable, trying compact context")
+        compact = _compact_grounding_payload(payload)
+        compact_messages = _build_groq_messages(req.question, compact, history, compact=True)
+        raw_compact = _try_groq(compact_messages)
+        if raw_compact:
+            candidate = _accept_groq_answer(raw_compact, req.question)
+            if candidate:
+                answer = candidate
+                if not _has_required_sections(answer):
+                    answer = _ensure_four_sections(answer, req.question, payload)
+
+    if not answer:
+        logger.info("chat: using data-grounded answer for question=%r", req.question[:80])
+        answer = _build_data_grounded_answer(req.question, payload)
 
     answer = _strip_numbers_and_quotes(answer)
 

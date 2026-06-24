@@ -58,6 +58,62 @@ QUESTION_TOPICS: dict[str, tuple[str, ...]] = {
               "volume", "lossless"),
     "segment": ("segment", "user type", "persona", "audience", "demographic", "casual",
                 "power user", "new user", "free tier user"),
+    "repetition": ("repeat", "repetitive", "repeatedly", "same content", "same songs", "same artists",
+                   "same music", "same playlist", "over and over", "again and again", "monoton",
+                   "listen to the same", "stuck listening", "re-listen"),
+}
+
+FOCUS_AREA_BY_TOPIC: dict[str, tuple[str, ...]] = {
+    "discovery": (
+        "Build exploration surfaces that surface unfamiliar artists outside listening history.",
+        "Add user controls for how adventurous algorithmic playlists should be.",
+        "Inject intentional novelty into autoplay, radio, and home feeds.",
+    ),
+    "repetition": (
+        "Detect repetitive listening loops and offer timely nudges toward fresh content.",
+        "Balance engagement optimization with explicit diversity and novelty goals.",
+        "Redesign autoplay to mix familiar comfort tracks with gradual novelty.",
+    ),
+    "pricing": (
+        "Clarify Premium value with benefits users can perceive immediately.",
+        "Rebalance free-tier ad load so discovery sessions feel less punitive.",
+        "Simplify family and student plan enrollment and verification.",
+    ),
+    "ui": (
+        "Flatten navigation for save, share, queue, and artist exploration flows.",
+        "Improve library organization for large collections and playlists.",
+        "Roll out major UI changes gradually with clearer migration paths.",
+    ),
+    "performance": (
+        "Treat playback reliability and crash-free sessions as top-line metrics.",
+        "Optimize load times on library, search, and playlist screens.",
+        "Improve Bluetooth reconnection and wireless playback consistency.",
+    ),
+    "social": (
+        "Expand collaborative playlists and friend-driven discovery surfaces.",
+        "Reduce friction for in-app and external music sharing.",
+        "Test community spaces around genres, moods, or local scenes.",
+    ),
+    "catalog": (
+        "Surface catalog availability transparently in search and browse.",
+        "Close high-friction regional and spoken-word catalog gaps.",
+        "Separate music and podcast discovery where users want focus.",
+    ),
+    "audio": (
+        "Make audio quality settings easier to find and understand.",
+        "Improve perceived quality on common wireless listening setups.",
+        "Evaluate bitrate and codec improvements users notice on Premium.",
+    ),
+    "segment": (
+        "Tailor onboarding and recommendations by listening style and tenure.",
+        "Provide deeper discovery tools for power listeners versus casual users.",
+        "Reduce free-tier friction in flows that support eventual conversion.",
+    ),
+    "general": (
+        "Prioritize product work that directly addresses the question asked.",
+        "Ship visible improvements in discovery control and recommendation freshness.",
+        "Track emerging complaint themes over time to catch regressions early.",
+    ),
 }
 
 OFF_TOPIC_MARKERS = (
@@ -211,12 +267,14 @@ def pain_lines(
     topic = detect_topic(question)
     topic_priority: dict[str, list[str]] = {
         "discovery": ["discovery", "recommendation_quality", "algorithm_repetition", "listening_behavior"],
+        "repetition": ["algorithm_repetition", "recommendation_quality", "listening_behavior", "discovery"],
         "pricing": ["pricing", "pricing_complaints", "ads"],
         "ui": ["ui_ux", "ui_ux_issues"],
         "performance": ["performance"],
         "social": ["social_features"],
         "catalog": ["content_availability", "catalog_gaps"],
         "audio": ["audio_quality"],
+        "segment": ["listening_behavior", "discovery", "ads", "pricing"],
         "general": [],
     }
     priority = topic_priority.get(topic, [])
