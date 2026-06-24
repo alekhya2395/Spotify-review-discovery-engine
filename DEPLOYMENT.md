@@ -76,12 +76,12 @@ In Vercel → **Settings → Environment Variables**, add (Production + Preview)
 
 | Variable | Value |
 |---|---|
-| `BACKEND_URL` | `https://<your-railway-app>.up.railway.app` |
-| `NEXT_PUBLIC_API_URL` | `https://<your-railway-app>.up.railway.app` |
+| `BACKEND_URL` | `https://spotify-review-discovery-engine-production.up.railway.app` |
+| `NEXT_PUBLIC_API_URL` | *(optional)* same Railway URL — only if you use server-side API calls |
 
-**Important:** `NEXT_PUBLIC_API_URL` must be set before the Vercel build — it is baked into the client bundle. After changing it, trigger a **Redeploy**.
+**Important:** The browser always calls `/backend-api/*` on your Vercel domain, which proxies to `BACKEND_URL` at runtime. You only need `BACKEND_URL` set correctly — no rebuild required when you change it (just redeploy once after setting it).
 
-The browser calls Railway directly for API requests (avoids Vercel serverless timeouts on chat). Railway CORS automatically allows any `*.vercel.app` origin.
+Do **not** set `BACKEND_URL` to your Vercel URL — it must be the Railway backend URL.
 
 ### 3.3 Deploy
 

@@ -7,17 +7,11 @@ function normalizeApiBase(raw: string): string {
 
 /** Resolve the API base URL for the current runtime. */
 export function apiRoot(): string {
-  const publicUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (publicUrl) {
-    const base = normalizeApiBase(publicUrl);
-    if (base) return `${base}/api`;
-  }
-
-  // Browser fallback: same-origin proxy (local dev or when only BACKEND_URL is set server-side)
+  // Browser: always use same-origin proxy (reads BACKEND_URL at runtime on Vercel).
+  // Avoids baking NEXT_PUBLIC_API_URL at build time and prevents misconfigured URLs.
   if (typeof window !== "undefined") return "/backend-api";
 
-  // SSR / server-side fetch
-  const serverUrl = process.env.BACKEND_URL;
+  const serverUrl = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
   if (serverUrl) {
     const base = normalizeApiBase(serverUrl);
     if (base) return `${base}/api`;

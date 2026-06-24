@@ -81,9 +81,8 @@ export default function Page() {
         <div className="mx-4 md:mx-6 mt-4 bg-amber-900/30 border border-amber-700 text-amber-200 rounded-lg p-3 text-sm">
           <strong>Backend unreachable.</strong> {healthErr}
           <br />
-          Start both servers with one command: <code>python run_app.py</code>
-          <br />
-          Or run the backend alone: <code>python run_backend.py</code> — retrying every 5s…
+          On Vercel, set <code>BACKEND_URL</code> to your Railway URL (e.g.{" "}
+          <code>https://spotify-review-discovery-engine-production.up.railway.app</code>) and redeploy.
         </div>
       )}
 
