@@ -1,0 +1,1368 @@
+{
+  "themes": {
+    "themes": [
+      {
+        "theme_id": "T0",
+        "theme_name": "good great / amazing / great",
+        "one_line_summary": "good great / amazing / great",
+        "estimated_frequency_pct": 4.4,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "As the desktop app seems unaffected, it'd be amazing if you could test with an iOS device instead, if possible",
+          "Amazing ok, you get app ok, you ok, ok.",
+          "Amazing app never has problems EVER soooo good",
+          "I love this app it’s so fun",
+          "This app is so good"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: good great, amazing, great, ok, good, nice, love, happy",
+        "what_users_want_instead": "good great, amazing, great, ok, good"
+      },
+      {
+        "theme_id": "T1",
+        "theme_name": "german / enjoy / amazing",
+        "one_line_summary": "german / enjoy / amazing",
+        "estimated_frequency_pct": 3.3,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "\"Did you know 90% of people experience chills from music? Research suggests it's due to music's ability to tap into our emotions and release dopamine. This combination creates a physical response, often referred to as a \"frisson.\" \"In an age of information, I'm holding out for an age of imagination.\" What's the most goosebump-inducing song for you? # Music # Emotion # Dopamine \"",
+          "Hey, we are Goong! Just two friends having fun making German pop music.",
+          "Hey, we are Goong! Just two friends having fun making German pop music.",
+          "Listen to music",
+          "It’s beautiful because whoever wrote them has to win a trophy"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: german, enjoy, amazing, good, listen, listening, shows, great",
+        "what_users_want_instead": "german, enjoy, amazing, good, listen"
+      },
+      {
+        "theme_id": "T2",
+        "theme_name": "best / streaming / best best",
+        "one_line_summary": "best / streaming / best best",
+        "estimated_frequency_pct": 3.2,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Best music app",
+          "Best music app",
+          "Best streaming app ever 💚🖤",
+          "Great app, it has podcasting and songs",
+          "Hands-Down BEST Music Platform"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: best, streaming, best best, platform, suggested, heard, apple, best love",
+        "what_users_want_instead": "best, streaming, best best, platform, suggested"
+      },
+      {
+        "theme_id": "T3",
+        "theme_name": "ads / ads need / ads ads",
+        "one_line_summary": "ads / ads need / ads ads",
+        "estimated_frequency_pct": 3.1,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Wayyyyyyyyy to many ads",
+          "too many ads",
+          "More to much ads",
+          "WAY too many ads",
+          "constantly gave me ice ads"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: ads, ads need, ads ads, fewer, fewer ads, need fewer, remove ads, need ads",
+        "what_users_want_instead": "ads, ads need, ads ads, fewer, fewer ads"
+      },
+      {
+        "theme_id": "T4",
+        "theme_name": "rock / disco / 90s",
+        "one_line_summary": "rock / disco / 90s",
+        "estimated_frequency_pct": 3.0,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Rare 70s/80s Soul & Disco",
+          "The Throwback rock sound Alternative Rock playlist based off of artists with a nostalgic sound. Artists on the list: Foo Fighters, Interpool, System of a Down and more.",
+          "\"The Throwback rock sound\" Alternative Rock playlist based off of artists with a nostalgic sound. Artists on the list: Foo Fighters, Interpool, System of a Down and more.",
+          "songs and artists you haven’t played in ages",
+          "90’s - 00’s R&B"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: rock, disco, 90s, 70s, 80s, indie, female, hits",
+        "what_users_want_instead": "rock, disco, 90s, 70s, 80s"
+      },
+      {
+        "theme_id": "T5",
+        "theme_name": "india / indias / students",
+        "one_line_summary": "india / indias / students",
+        "estimated_frequency_pct": 2.9,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "NEET re-exam: 3 students arrive late after being stuck in traffic due to Congress rally, denied entry | Video - India TV News",
+          "How Indian PM Modi’s efforts to isolate Pakistan ‘backfired’ | India-Pakistan Tensions News",
+          "A casual conversation made me realise that India can never fully become a developed country. With some mathematical evidence.",
+          "Iranian rapper has been imprisoned and tortured for 100 days",
+          "How many here knew Freddie Mercury was Parsi, born to Indian Parents and studied in India."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: india, indias, students, killed, news, rate, day, half",
+        "what_users_want_instead": "india, indias, students, killed, news"
+      },
+      {
+        "theme_id": "T6",
+        "theme_name": "en / que / el",
+        "one_line_summary": "en / que / el",
+        "estimated_frequency_pct": 2.9,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "♫ Otra canción que me gusta en Spotify ►\"Never Let Me Down Again\" de \"Depeche Mode\" en su album \"Music for the Masses\"",
+          "♫ Otra canción que me gusta en Spotify ►\"Strangelove\" de \"Depeche Mode\" en su album \"Music for the Masses\"",
+          "♫ Otra canción que me gusta en Spotify ►\"Strangelove\" de \"Depeche Mode\" en su album \"Music for the Masses\"",
+          "Las mejores",
+          "La mejor app"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: en, que, el, gusta, gusta en, otra cancin, otra, que gusta",
+        "what_users_want_instead": "en, que, el, gusta, gusta en"
+      },
+      {
+        "theme_id": "T7",
+        "theme_name": "themetaldogarticlelist / video / metal",
+        "one_line_summary": "themetaldogarticlelist / video / metal",
+        "estimated_frequency_pct": 2.6,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "# TheMetalDogArticleList # Metal The Best Song on Every Opeth Album https:// loudwire.com/best-song-every-o peth-album/ # TheBestSong # EveryOpethAlbum # album # Metal # music",
+          "# TheMetalDogArticleList # BraveWords BEARTOOTH Release “Bullsh*t” Single / Lyric Video https:// bravewords.com/news/beartooth- release-bullsht-single-lyric-video/ # BEARTOOTH # Release # Bullsh # album # newalbum # newrelease # single # video # announcement # BraveWords # metal # music",
+          "# TheMetalDogArticleList # BraveWords BEARTOOTH Release “Bullsh*t” Single / Lyric Video https:// bravewords.com/news/beartooth- release-bullsht-single-lyric-video/ # BEARTOOTH # Release # Bullsh # album # newalbum # newrelease # single # video # announcement # BraveWords # metal # music",
+          "It's an alt-metal song inspired by 90s era Pumpkins, 00s era deftones, a bit of Tool and a sprinkling of Cradle",
+          "It's an alt-metal song inspired by 90s era Pumpkins, 00s era deftones, a bit of Tool and a sprinkling of Cradle"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: themetaldogarticlelist, video, metal, watch, https, secret, single, release",
+        "what_users_want_instead": "themetaldogarticlelist, video, metal, watch, https"
+      },
+      {
+        "theme_id": "T8",
+        "theme_name": "discoverweekly / discover weekly / discover",
+        "one_line_summary": "discoverweekly / discover weekly / discover",
+        "estimated_frequency_pct": 2.5,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Co by było, gdybyś mógł powiedzieć Discover Weekly, czego ma szukać – i wreszcie by posłuchało?",
+          "Spotify rinnova Discover Weekly con filtri sui generi",
+          "every song I play from my Spotify Discover Weekly playlist is the same song",
+          "Advanced algorithms track listening habits to create custom daily mixes, Release Radar, and Discover Weekly playlists.",
+          "Discover Weekly is Amazing"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: discoverweekly, discover weekly, discover, weekly, today, track, taste, profile",
+        "what_users_want_instead": "discoverweekly, discover weekly, discover, weekly, today"
+      },
+      {
+        "theme_id": "T9",
+        "theme_name": "ads / fewer / fewer ads",
+        "one_line_summary": "ads / fewer / fewer ads",
+        "estimated_frequency_pct": 2.3,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "1. You need premium for almost every good feature. 2. The ads are annoying. I get like 3 ads every 4 songs, which is too much. 3. I can't queue much songs because there is a limit for how many songs you can queue every day or something. 4. Smart shuffle being default is annoying. I can't listen to a specific playlist/album without it changing to a different artist. 5. Add a your top songs every month when its time for the yearly wrap.",
+          "Very bad music app so many ads",
+          "It’s the best app to have music on but the adds are to much and to often xx",
+          "I don’t like how many adds I get after one song",
+          "Ads after every song is irritating"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: ads, fewer, fewer ads, need fewer, need adfree, adfree, free, add",
+        "what_users_want_instead": "ads, fewer, fewer ads, need fewer, need adfree"
+      },
+      {
+        "theme_id": "T10",
+        "theme_name": "automagic / automagic playlist / playlist",
+        "one_line_summary": "automagic / automagic playlist / playlist",
+        "estimated_frequency_pct": 2.0,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Automagic 🔊 show 📻 playlist on Spotify",
+          "Automagic 🔊 show 📻 playlist on Spotify",
+          "Automagic show playlist on Spotify",
+          "Automagic 🔊 show 📻 playlist on Spotify",
+          "Automagic 🔊 show 📻 playlist on Spotify"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: automagic, automagic playlist, playlist, releases automagic, need automagic, playlist new, new releases, releases",
+        "what_users_want_instead": "automagic, automagic playlist, playlist, releases automagic, need automagic"
+      },
+      {
+        "theme_id": "T11",
+        "theme_name": "need recommendations / recommendations / recommendations need",
+        "one_line_summary": "need recommendations / recommendations / recommendations need",
+        "estimated_frequency_pct": 2.0,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Kneecap's Fenian album, what other music would I like",
+          "Need Music Recommendations",
+          "The music recommendations are always spot-on",
+          "severance by lumon [will keep updating it with all in-universe songs]"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: need recommendations, recommendations, recommendations need, recommendations like, recommend, like, recommendations based, suggestions",
+        "what_users_want_instead": "need recommendations, recommendations, recommendations need, recommendations like, recommend"
+      },
+      {
+        "theme_id": "T12",
+        "theme_name": "need stable / stable / black screen",
+        "one_line_summary": "need stable / stable / black screen",
+        "estimated_frequency_pct": 1.9,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "after paying this app is closing itself again and again",
+          "It keeps crashing on my phone",
+          "My husband and daughter just gets the black screen",
+          "Hanging is frustrating",
+          "not  able to open"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: need stable, stable, black screen, crashing, open, screen, closing, black",
+        "what_users_want_instead": "need stable, stable, black screen, crashing, open"
+      },
+      {
+        "theme_id": "T13",
+        "theme_name": "magazine / httpswww / japanese",
+        "one_line_summary": "magazine / httpswww / japanese",
+        "estimated_frequency_pct": 1.9,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "ノベルノア、「なっちゃった♡」を配信開始｜THE MAGAZINE",
+          "A.N.K.H、\\\"rensa!\\\"を配信開始|THE MAGAZINE JDMSAKEが\\\"ロングホイールベー…",
+          "A.N.K.H、「rensa!」を配信開始｜THE MAGAZINE",
+          "正式發佈！我的 # SpotifyWrapped 回顧",
+          "無人知曉 在這一年是我的第一名。"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: magazine, httpswww, japanese, stray, stone, space, japan, mc",
+        "what_users_want_instead": "magazine, httpswww, japanese, stray, stone"
+      },
+      {
+        "theme_id": "T14",
+        "theme_name": "air / body / honest",
+        "one_line_summary": "air / body / honest",
+        "estimated_frequency_pct": 1.8,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "‘Beyoncé’s Crazy in Love makes you move your body’: Gloria Gaynor’s honest playlist https://www. theguardian.com/music/2026/jun /21/gloria-gaynor-honest-playlist-marvin-gaye-beyonce # Music # Culture # Disco # PopAndRock",
+          "‘Beyoncé’s Crazy in Love makes you move your body’: Gloria Gaynor’s honest playlist",
+          "‘Beyoncé’s Crazy in Love makes you move your body’: Gloria Gaynor’s honest playlist",
+          "Vicky Tafoya - Forever [Pachuco, Rockabilly Slow Jam]",
+          "Duran Duran - Ordinary World [1993]"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: air, body, honest, love, blake, crazy, makes, official video",
+        "what_users_want_instead": "air, body, honest, love, blake"
+      },
+      {
+        "theme_id": "T15",
+        "theme_name": "rap / hiphop / hop",
+        "one_line_summary": "rap / hiphop / hop",
+        "estimated_frequency_pct": 1.8,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "My buddy has worked over 10 years and has accumulated over 26k songs across 3 playlists on this Hip-Hop/Rap playlists....",
+          "I'm AVRS I make satirical hip-hop inspired by the 2010s neon era.",
+          "I'm AVRS I make satirical hip-hop inspired by the 2010s neon era.",
+          "I'm AVRS I make satirical hip-hop inspired by the 2010s neon era.",
+          "It's rhythmic and energetic beat with soothing sexy vocals will get anyone moving and vibin on it on repeat!"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: rap, hiphop, hop, hip hop, hip, inspired, era, melodic",
+        "what_users_want_instead": "rap, hiphop, hop, hip hop, hip"
+      },
+      {
+        "theme_id": "T16",
+        "theme_name": "ai / ai need / artist",
+        "one_line_summary": "ai / ai need / artist",
+        "estimated_frequency_pct": 1.8,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Deezer’s AI music detector",
+          "AI Backgrounds??",
+          "Noice (not ai)",
+          "the unmaintained ai slop that keeps getting uploaded",
+          "I love the ACTUAL artists the ones that are REAL I think that Spotify should take off the AI bands/ artists"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: ai, ai need, artist, artists, aigenerated, filter, recommendations, accurate",
+        "what_users_want_instead": "ai, ai need, artist, artists, aigenerated"
+      },
+      {
+        "theme_id": "T17",
+        "theme_name": "radio / brings / spotifywrapped",
+        "one_line_summary": "radio / brings / spotifywrapped",
+        "estimated_frequency_pct": 1.7,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Brings a different meaning to the # SpotifyWrapped hashtag.",
+          "Automagic # Spotify playlist # DaybreakStar Radio : non-profit Indigenous radio network from Seattle, 24/7, every Nation, every genre.",
+          "Automagic # Spotify playlist # DaybreakStar Radio : non-profit Indigenous radio network from Seattle, 24/7, every Nation, every genre.",
+          "Here's one: https://open.spotify.com/track/72wqLtMtkrB0qUw6jSqM0Z?si=025677c3c1df4439",
+          "https://open.spotify.com/track/5SYugUCqLTkFfInqpIMTY7?si=58c5133927f046ca"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: radio, brings, spotifywrapped, meaning, genre, different, banned, network",
+        "what_users_want_instead": "radio, brings, spotifywrapped, meaning, genre"
+      },
+      {
+        "theme_id": "T18",
+        "theme_name": "need fix / fix / podcast",
+        "one_line_summary": "need fix / fix / podcast",
+        "estimated_frequency_pct": 1.7,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "sometimes it loops, which i want and sometimes it goes to a whole nother podcast",
+          "Somehow I made a song unplayable?",
+          "When you click on a podcast page, it doesn’t load the shows",
+          "I cant go back on a song and I have to put my password",
+          "There is no podcast when I search something up"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: need fix, fix, podcast, podcasts, click, select, want, doesnt",
+        "what_users_want_instead": "need fix, fix, podcast, podcasts, click"
+      },
+      {
+        "theme_id": "T19",
+        "theme_name": "je / sur / der",
+        "one_line_summary": "je / sur / der",
+        "estimated_frequency_pct": 1.7,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "J’adore Spotify je peux l’écouter en tout temp ménage plage bateau et sa place encore plus de vie dans ma vie  merci Spotify",
+          "J’adore Spotify je peux l’écouter en tout temp ménage plage bateau et sa place encore plus de vie dans ma vie  merci Spotify",
+          "Une Rétrospective @ SpotifyCanada@twitter.com qui en dit long sur nos gars Never sleep on your # SpotifyWrapped # GoHabsGo",
+          "Je suis extrêmement content et heureux",
+          "Je n’arrive pas à accéder à la promotion de 3 mois gratuit."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: je, sur, der, nos, une, continue, le, mon",
+        "what_users_want_instead": "je, sur, der, nos, une"
+      },
+      {
+        "theme_id": "T20",
+        "theme_name": "premium / features / need premium",
+        "one_line_summary": "premium / features / need premium",
+        "estimated_frequency_pct": 1.5,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Get premium",
+          "many common features is avalable for only premium users",
+          "needs premium for everything",
+          "If you don’t have premium it’s just horrible",
+          "it causes things to mess up and take away some things and make them premium"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: premium, features, need premium, premium features, free, need free, premium dont, premium just",
+        "what_users_want_instead": "premium, features, need premium, premium features, free"
+      },
+      {
+        "theme_id": "T21",
+        "theme_name": "discovery / artist discovery / artist",
+        "one_line_summary": "discovery / artist discovery / artist",
+        "estimated_frequency_pct": 1.4,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Spotify’s Andy Sloan-Vincent on Scaling Artist Discovery in the U.K.: ‘We’ve Always Been a Musical Nation’",
+          "YouTubers like Tuv, MorbidForFun, Nick Crowley, ScareTheater.",
+          "'The Scary Jokes' and 'Tikkle Me'",
+          "It was so organized, and you can learn about different artists!!",
+          "poor discoverability of new artists"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: discovery, artist discovery, artist, need artist, finding, finding new, method, store",
+        "what_users_want_instead": "discovery, artist discovery, artist, need artist, finding"
+      },
+      {
+        "theme_id": "T22",
+        "theme_name": "iil / film / movies",
+        "one_line_summary": "iil / film / movies",
+        "estimated_frequency_pct": 1.4,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "The Guardian view on John Williams and Steven Spielberg: a partnership that changed cinema | Editorial",
+          "The Guardian view on John Williams and Steven Spielberg: a partnership that changed cinema | Editorial",
+          "The Guardian view on John Williams and Steven Spielberg: a partnership that changed cinema | Editorial https://www. theguardian.com/commentisfree/ 2026/jun/19/the-guardian-view-on-john-williams-and-steven-spielberg-a-partnership-that-changed-cinema # Film # Culture # StevenSpielberg # JohnWilliams # Music # Oscars # AwardsAndPrizes",
+          "Ghosts & Errors - Teenage Prose [alternative] (2026)",
+          "Media trial vs reality - Twisha, Bhopal case"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: iil, film, movies, series, williams, changed, john, recommendations iil",
+        "what_users_want_instead": "iil, film, movies, series, williams"
+      },
+      {
+        "theme_id": "T23",
+        "theme_name": "good good / good / enjoying",
+        "one_line_summary": "good good / good / enjoying",
+        "estimated_frequency_pct": 1.4,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "very good",
+          "very good",
+          "very good",
+          "ThankGod",
+          "Good cerote"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: good good, good, enjoying, dope, fun good, good just, wrote, just perfect",
+        "what_users_want_instead": "good good, good, enjoying, dope, fun good"
+      },
+      {
+        "theme_id": "T24",
+        "theme_name": "2025 / taylor / year",
+        "one_line_summary": "2025 / taylor / year",
+        "estimated_frequency_pct": 1.3,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Only 45 more plays until my alternative rock anthem Who Are You, Anyway? hits 1000!",
+          "2025 Billboard Modern Rock",
+          "[Rock] 2025 Billboard Modern Rock",
+          "Barry Manilow tribute act 'banned' from meeting hero over wig row",
+          "help find a TikTok song from 2022-2023."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: 2025, taylor, year, 45, anthem, billboard, listeners, alternative rock",
+        "what_users_want_instead": "2025, taylor, year, 45, anthem"
+      },
+      {
+        "theme_id": "T25",
+        "theme_name": "premium / restrictions / free",
+        "one_line_summary": "premium / restrictions / free",
+        "estimated_frequency_pct": 1.3,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "I use it 1 year ago today I was doing my work and suddenly it saying to take premium, but I do not want to take, and it say six skips in one hour, it means they do not giving their app to use me what is that Spotify fix it I deleted and install it, but it not works my old ID starts fix it, please",
+          "Spotify free is unuseable for me",
+          "it's time to delete Spotify 🙂 I can't bear anymore restrictions",
+          "Whenever I press play on my playlist it keeps asking for me to try the 3month version of premium but it won’t lead me out of the app so I can’t play music.",
+          "stop the thousands of ads or give me free Spotify premium forever"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: premium, restrictions, free, free version, version, download, need free, buy",
+        "what_users_want_instead": "premium, restrictions, free, free version, version"
+      },
+      {
+        "theme_id": "T26",
+        "theme_name": "subscription / price / prices",
+        "one_line_summary": "subscription / price / prices",
+        "estimated_frequency_pct": 1.3,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Raising prices",
+          "you guys failed me. I cancelled a subscription and was debited anyway. I'm sure y'all won't see this because I'm the least of y'all's problems and that ain't right. I deserve hearing guys. that's not a nice way to treat a customer.",
+          "Nothing has changed nothing has been improved and they just keep upping the subscription price.",
+          "I am trying to subscribe but it doesn’t work please helps me",
+          "they’ve increased the monthly cost with no new added features or major improvements."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: subscription, price, prices, payment, charge, increase, lower, guys",
+        "what_users_want_instead": "subscription, price, prices, payment, charge"
+      },
+      {
+        "theme_id": "T27",
+        "theme_name": "best / best best / choice",
+        "one_line_summary": "best / best best / choice",
+        "estimated_frequency_pct": 1.3,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Best one",
+          "On so many levels it’s the best",
+          "iykyk the best",
+          "Enough said",
+          "For my mood it’s enough"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: best, best best, choice, best definitely, reliable, personal, definitely, food",
+        "what_users_want_instead": "best, best best, choice, best definitely, reliable"
+      },
+      {
+        "theme_id": "T28",
+        "theme_name": "proper / count / discography",
+        "one_line_summary": "proper / count / discography",
+        "estimated_frequency_pct": 1.2,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Trying to do proper discography runs on Spotify drove me insane, so I built this",
+          "Spotify Wrapped Breaks Own Record With 250 Million Engagements in Less Than Three Days",
+          "SPOTIFY takes their customers for GRANTED. DON'T USE THIS COMPANY. Update: Spotify chatbot replied. The only customer service is a chatbot.",
+          "I’ve updated Alexa, updated Spotify, cleared cache, downloaded my playlists, unlinked, relinked Spotify.",
+          "Is Spotify down for anyone else right now?"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: proper, count, discography, customer, updated, updates, update, takes",
+        "what_users_want_instead": "proper, count, discography, customer, updated"
+      },
+      {
+        "theme_id": "T29",
+        "theme_name": "thread / weekly / feedback",
+        "one_line_summary": "thread / weekly / feedback",
+        "estimated_frequency_pct": 1.2,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "/r/WATMM Weekly Motivation Thread",
+          "/r/WATMM Weekly Motivation Thread",
+          "/r/WATMM Weekly Motivation Thread",
+          "/r/WATMM Weekly Feedback Thread",
+          "/r/WATMM Weekly Promotion Thread"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: thread, weekly, feedback, promotion",
+        "what_users_want_instead": "thread, weekly, feedback, promotion"
+      },
+      {
+        "theme_id": "T30",
+        "theme_name": "fix / work / log",
+        "one_line_summary": "fix / work / log",
+        "estimated_frequency_pct": 1.2,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "this app is great, but Spotify. with all respect. fix your replay button it does not work like it's supposed to, to me it's stuck on replay and I cannot take it off replay.",
+          "there's a bug in this app, fix it. It takes you out of Spotify after a few seconds for no reason. pls fix it",
+          "I’ve been using Spotify a lot, and it keeps freezing on 7 seconds of the song… can you fix this? It’s been going on for months now, so I need to use YouTube of Apple Music. Please fix this I beg!!! Spotify is super good, it’s just this issue that’s been making me frustrated.",
+          "I can no longer stream lossless to them",
+          "Lots of technical issues. The app crashes a lot, and it'll cause my entire phone to freeze, making me have to restart the whole device for Spotify to work."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: fix, work, log, crashing, wont, seconds, open, need fix",
+        "what_users_want_instead": "fix, work, log, crashing, wont"
+      },
+      {
+        "theme_id": "T31",
+        "theme_name": "folders / playlist / playlists",
+        "one_line_summary": "folders / playlist / playlists",
+        "estimated_frequency_pct": 1.1,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Why can’t I organize my playlists in folders that can be pinned to the top?",
+          "i want a cover available for my folders for playlisys pls",
+          "Playlist Folders are Now Available on Spotify Mobile – Here’s How to Organize Your Playlists",
+          "can yall add smth through which i can have access to that playlist",
+          "Make your own playlist"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: folders, playlist, playlists, covers, available, make playlist, organize, retro",
+        "what_users_want_instead": "folders, playlist, playlists, covers, available"
+      },
+      {
+        "theme_id": "T32",
+        "theme_name": "membership / hai / da",
+        "one_line_summary": "membership / hai / da",
+        "estimated_frequency_pct": 1.1,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Bhut bdiya app hai maje hi agye",
+          "Mai nahi manta mera desh duniya ka sabse mahaan desh hai..",
+          "meine 1 year ka membership liya tha 2 mahine just huye aab dikharaha hai ki update payment process krke membership discontinue kar diya",
+          "It is gud bc I can lisen 2 muzic with da bois",
+          "puzina liza"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: membership, hai, da, department, gau, katy, process, apk",
+        "what_users_want_instead": "membership, hai, da, department, gau"
+      },
+      {
+        "theme_id": "T33",
+        "theme_name": "love need / feeling / romantic",
+        "one_line_summary": "love need / feeling / romantic",
+        "estimated_frequency_pct": 1.1,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "Love songs without self-love?",
+          "What are some songs about feeling guilty for not loving someone as much as they love you?",
+          "Old Romantic Songs in English | Best Classic Love Songs 70s 80s 90s",
+          "Great free songs",
+          "Written after my wife of 51 years passed away on Valentine's Day 2024"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: love need, feeling, romantic, falling, love, english, rage, romance",
+        "what_users_want_instead": "love need, feeling, romantic, falling, love"
+      },
+      {
+        "theme_id": "T34",
+        "theme_name": "playlists need / playlists / curated",
+        "one_line_summary": "playlists need / playlists / curated",
+        "estimated_frequency_pct": 1.1,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "It is amazing but please let us pin more than 4 playlists",
+          "Grunge Rain Room - curated Spotify playlist",
+          "I miss the curated playlists",
+          "The recommendation, the playlist is just above the marking",
+          "The recommendation, the playlist is just above the marking"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: playlists need, playlists, curated, need curated, dark, playlist, s4s, research",
+        "what_users_want_instead": "playlists need, playlists, curated, need curated, dark"
+      },
+      {
+        "theme_id": "T35",
+        "theme_name": "feature / whats / new",
+        "one_line_summary": "feature / whats / new",
+        "estimated_frequency_pct": 1.1,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Bring it back!!! I used to check this every day to see new releases from the artists i follow, this app sucks without it.",
+          "Horrible - doesn’t even work BRING IT BACK",
+          "Please bring back the What's New feature",
+          "Previous logo was much better than the current one",
+          "Bring the previous logo back!"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: feature, whats, new, bring, new releases, need restore, restore, releases",
+        "what_users_want_instead": "feature, whats, new, bring, new releases"
+      },
+      {
+        "theme_id": "T36",
+        "theme_name": "led zeppelin / zeppelin / led",
+        "one_line_summary": "led zeppelin / zeppelin / led",
+        "estimated_frequency_pct": 1.1,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "♫ Otra canción que me gusta en Spotify ►«Four Sticks - Remaster» de «Led Zeppelin» en su album «Led Zeppelin IV (Remaster)»",
+          "♫ Otra canción que me gusta en Spotify ►«Four Sticks - Remaster» de «Led Zeppelin» en su album «Led Zeppelin IV (Remaster)»",
+          "♫ Otra canción que me gusta en Spotify ►«Four Sticks - Remaster» de «Led Zeppelin» en su album «Led Zeppelin IV (Remaster)»",
+          "Para mí, el valor fundamental es el Trabajo en equipo , y la canción que mejor lo representa es \"Come Together\" de The Beatles",
+          "Ich habe vor ziemlich genau einem Jahr meine Single „Top Of The World“ über Ditto Music veröffentlicht."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: led zeppelin, zeppelin, led, en, cancin, cancin que, otra, que gusta",
+        "what_users_want_instead": "led zeppelin, zeppelin, led, en, cancin"
+      },
+      {
+        "theme_id": "T37",
+        "theme_name": "love love / love / life",
+        "one_line_summary": "love love / love / life",
+        "estimated_frequency_pct": 1.1,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "I love Spotify it’s so gooddddf",
+          "I love Spotify so much it’s a life saver",
+          "I love Spotify love the playlist and music choices for me!",
+          "I LOVE SPOTIFY!!!",
+          "I LOVE SPOTIFY SO MUCH"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: love love, love, life, boom, yup, fav artists, like listening, love dont",
+        "what_users_want_instead": "love love, love, life, boom, yup"
+      },
+      {
+        "theme_id": "T38",
+        "theme_name": "mp3 / best / online",
+        "one_line_summary": "mp3 / best / online",
+        "estimated_frequency_pct": 1.0,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Update: You might remember my multiplayer music trivia game that uses your real Spotify stats (SpotTheFan) - it is finally live on iOS today!",
+          "Best 7 Spotify to MP3 Converter Online",
+          "Discover the best Spotify to MP3 converter online tools",
+          "no one can compare to Spotify",
+          "I have used Spotify from inception, clearly the best , I love it."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: mp3, best, online, used, game, appreciate, best definitely, listening great",
+        "what_users_want_instead": "mp3, best, online, used, game"
+      },
+      {
+        "theme_id": "T39",
+        "theme_name": "adds / adds need / need ads",
+        "one_line_summary": "adds / adds need / need ads",
+        "estimated_frequency_pct": 1.0,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "It would of lbeen better if it was without adds",
+          "Would be better without adds",
+          "too much adds",
+          "I hate the adds and I am not happy fix it",
+          "Amazing but you should reduce the adds."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: adds, adds need, need ads, add, ads hate, remove, ads, remove ads",
+        "what_users_want_instead": "adds, adds need, need ads, add, ads hate"
+      },
+      {
+        "theme_id": "T40",
+        "theme_name": "issue / crossfade / problem",
+        "one_line_summary": "issue / crossfade / problem",
+        "estimated_frequency_pct": 0.9,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "They randomly logged me out of my account",
+          "crossfade not working",
+          "Things keeps signing me out and telling me I need to change my password. When doing this it keeps telling me information is wrong",
+          "you can’t change your own password easily",
+          "Account wasn’t working so had to delete and redownload. Now won’t let me back into my account and I don’t know what to do"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: issue, crossfade, problem, account, password, happening, telling, update",
+        "what_users_want_instead": "issue, crossfade, problem, account, password"
+      },
+      {
+        "theme_id": "T41",
+        "theme_name": "need like / jesus / plastic",
+        "one_line_summary": "need like / jesus / plastic",
+        "estimated_frequency_pct": 0.9,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "Songs like Evolver by Squadda B?",
+          "I just adore the song plastic jesus by tia blake and want more songs like it!!",
+          "i adore the song plastic jesus by tia blake and need more songs like it!!",
+          "What is a cover song that completely disrespects the original by being way better?",
+          "underrated songs"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: need like, jesus, plastic, blake, like, need similar, like need, similar",
+        "what_users_want_instead": "need like, jesus, plastic, blake, like"
+      },
+      {
+        "theme_id": "T42",
+        "theme_name": "accurate recommendations / recommendations / need accurate",
+        "one_line_summary": "accurate recommendations / recommendations / need accurate",
+        "estimated_frequency_pct": 0.9,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Bon Iver - Michicant [WEWIL?]",
+          "what else will I like?",
+          "What will we all like?",
+          "Best recommendation engine ever! Best lossless quality!",
+          "Great Nicobar Project: Compromise"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: accurate recommendations, recommendations, need accurate, accurate, like need, wewil, need personalized, wewil need",
+        "what_users_want_instead": "accurate recommendations, recommendations, need accurate, accurate, like need"
+      },
+      {
+        "theme_id": "T43",
+        "theme_name": "language / italian / np",
+        "one_line_summary": "language / italian / np",
+        "estimated_frequency_pct": 0.9,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Today's music: Лея - Сирена https:// youtu.be/8wYeGXxihGU # folk # FolkRock # ukraine # music # np # NowPlaying # MastoMusic",
+          "An Italian Language Playlist to supplement your language study and showcase talented Italian artists (Sanremo pop italiano, canzoni moderne)",
+          "An Italian Language Playlist to supplement your language study and showcase talented Italian artists (Sanremo pop italiano, canzoni moderne)",
+          "does not have all the regional languages song collections",
+          "I never asked for freaking Japanese Music"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: language, italian, np, nowplaying mastomusic, mastomusic, np nowplaying, todays, story",
+        "what_users_want_instead": "language, italian, np, nowplaying mastomusic, mastomusic"
+      },
+      {
+        "theme_id": "T44",
+        "theme_name": "believe / fans / big",
+        "one_line_summary": "believe / fans / big",
+        "estimated_frequency_pct": 0.9,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "New fans and OG fans, your ongoing support means the world.",
+          "I really believe I m the Next big thing",
+          "I really believe I m the Next big thing",
+          "barcelona sponsor",
+          "Supporting in my bad time ❤️‍🩹"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: believe, fans, big, expecting, forget, wasnt, supporting, waiting",
+        "what_users_want_instead": "believe, fans, big, expecting, forget"
+      },
+      {
+        "theme_id": "T45",
+        "theme_name": "load / loading / slow",
+        "one_line_summary": "load / loading / slow",
+        "estimated_frequency_pct": 0.9,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "The app takes like 20 seconds to open then 20 more seconds to open my liked songs",
+          "App crashes throughout the day without warning, is extremely slow to load (10-15s between tapping on a song and it playing)",
+          "App is very slow to load things",
+          "Takes forever to load",
+          "sometimes a lil glitchy/laggy"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: load, loading, slow, takes, loaded, faster, seconds, device",
+        "what_users_want_instead": "load, loading, slow, takes, loaded"
+      },
+      {
+        "theme_id": "T46",
+        "theme_name": "lossless / offline / listen",
+        "one_line_summary": "lossless / offline / listen",
+        "estimated_frequency_pct": 0.9,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "I'd rather people listen to my music in lossless formats for free, than imperceptibly destroy their hearing with inter-sample peaking.",
+          "You have to pay to get premium so you can listen to music without Wi-Fi",
+          "I'd rather people listen to my music in lossless formats for free, than imperceptibly destroy their hearing with inter-sample peaking.",
+          "have to pay to listen to music in any order",
+          "It’s good but for offline it’s not ok bcz we nned to pay premium for offline songs"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: lossless, offline, listen, free, pay, month, pay premium, subscription",
+        "what_users_want_instead": "lossless, offline, listen, free, pay"
+      },
+      {
+        "theme_id": "T47",
+        "theme_name": "madonna / edit / goinia",
+        "one_line_summary": "madonna / edit / goinia",
+        "estimated_frequency_pct": 0.8,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "golden history # Spotify offered me",
+          "Love Sensation – Radio Edit Madonna #Goiânia #jannRicardo #madonna #música #music #Spotify",
+          "Love Sensation – Radio Edit Madonna #Goiânia #jannRicardo #madonna #música #music #Spotify",
+          "Spotify Camp nou",
+          "Love Spotify"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: madonna, edit, goinia, jannricardo, goinia jannricardo, msica, love, radio",
+        "what_users_want_instead": "madonna, edit, goinia, jannricardo, goinia jannricardo"
+      },
+      {
+        "theme_id": "T48",
+        "theme_name": "tracks / section / month",
+        "one_line_summary": "tracks / section / month",
+        "estimated_frequency_pct": 0.8,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "why would Spotify want to bury new tracks from artists",
+          "Top tracks this month missing",
+          "Top tracks this month removed",
+          "spotify decides to play something similar to my playlist",
+          "i always create my playlists with YouTube and sync them to Spotify. best approach so far. as for getting exactly song's still a challenge.but it's Good. music Vybz awesome."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: tracks, section, month, jump, need restored, mixes, restored, new tracks",
+        "what_users_want_instead": "tracks, section, month, jump, need restored"
+      },
+      {
+        "theme_id": "T49",
+        "theme_name": "widget / new widget / android",
+        "one_line_summary": "widget / new widget / android",
+        "estimated_frequency_pct": 0.8,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "No new widget available",
+          "Fix the widget please",
+          "New widget can't resize",
+          "For once they added something useful",
+          "The new widget I've been told to use is terrible."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: widget, new widget, android, new, samsung, access new, bigger, widget functionality",
+        "what_users_want_instead": "widget, new widget, android, new, samsung"
+      },
+      {
+        "theme_id": "T50",
+        "theme_name": "love love / like like / love",
+        "one_line_summary": "love love / like like / love",
+        "estimated_frequency_pct": 0.8,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "I love it so much",
+          "I have no comment, I'm just amused.",
+          "it's really very cool love love love it sooo much",
+          "Sometimes its fun to just, well, laugh at someone's ridiculous shirt",
+          "Sometimes its fun to just, well, laugh at someone's ridiculous shirt"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: love love, like like, love, fun, just, amused, comment im, appreciate",
+        "what_users_want_instead": "love love, like like, love, fun, just"
+      },
+      {
+        "theme_id": "T51",
+        "theme_name": "excellent / impressive / incredible",
+        "one_line_summary": "excellent / impressive / incredible",
+        "estimated_frequency_pct": 0.8,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Excellent",
+          "excellent",
+          "excellent",
+          "fantastic",
+          "fantastic"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: excellent, impressive, incredible, thanks, awesome, recommend, amazing, great",
+        "what_users_want_instead": "excellent, impressive, incredible, thanks, awesome"
+      },
+      {
+        "theme_id": "T52",
+        "theme_name": "starts / remix / lets",
+        "one_line_summary": "starts / remix / lets",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Next song starts with an T.",
+          "Next song starts with D.",
+          "Next song starts with E.",
+          "It is sigma",
+          "Next song starts with an N."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: starts, remix, lets, feat, real, track",
+        "what_users_want_instead": "starts, remix, lets, feat, real"
+      },
+      {
+        "theme_id": "T53",
+        "theme_name": "june / daily / 2026",
+        "one_line_summary": "june / daily / 2026",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Daily Discussion - June 20, 2026",
+          "Daily Discussion - June 22, 2026",
+          "Daily Discussion - June 21, 2026",
+          "RECCOMENDATION OF TODAY",
+          "Summer 2026 is for grooving!"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: june, daily, 2026, 21, cash, birthday, 2026 teatime, 18 2026",
+        "what_users_want_instead": "june, daily, 2026, 21, cash"
+      },
+      {
+        "theme_id": "T54",
+        "theme_name": "shuffle / repetition / shuffling",
+        "one_line_summary": "shuffle / repetition / shuffling",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Over 1,500 songs in my list... on shuffle, it plays the same rotation EVERY. SINGLE. TIME. Shuffle is abysmal at best.",
+          "shuffle does not work - I get the same mix of songs with normal shuffle, with smart shuffle, if I clear the app cache, over 2000 songs in my playlist and it gives me the same small rotation. normally it would fix itself after a few hours, but lately it's been stuck on the same rotation for days. pick a new song and it restarts the rotation. the exact same group of songs.",
+          "Spotify cant shuffle to save its life",
+          "The songs need to be shuffled around more",
+          "i use it a lot but if i go onto search put on a song and then listen to it as it makes a new shuffle i’ll go onto spotify to either save a song i like or skip one and it comes out of the song i was listening too and puts it onto the artists album and repeats the first song it does it constantly it’s extremely annoying and needs to be fixed"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: shuffle, repetition, shuffling, randomly, basic, true, functionality, selection",
+        "what_users_want_instead": "shuffle, repetition, shuffling, randomly, basic"
+      },
+      {
+        "theme_id": "T55",
+        "theme_name": "advice / need version / melodies",
+        "one_line_summary": "advice / need version / melodies",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "What can I do with instrumentals, parts, Melodies and songs that don’t have lyrics?",
+          "Writing the vocal melody vs. the rest of the music (looking for advice)",
+          "I think it would need a version in a lower key, with a more enveloping and less playful soundscape.",
+          "Song writing advice",
+          "I'm a teen songwriter but I suck at production, what do I do?"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: advice, need version, melodies, key, version, lower, sound like, loops",
+        "what_users_want_instead": "advice, need version, melodies, key, version"
+      },
+      {
+        "theme_id": "T56",
+        "theme_name": "good / great / nice",
+        "one_line_summary": "good / great / nice",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "it's good",
+          "It's very good for me",
+          "It very good",
+          "it’s so good",
+          "It’s was very good"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: good, great, nice, nice good, good great, cool, good good, real",
+        "what_users_want_instead": "good, great, nice, nice good, good great"
+      },
+      {
+        "theme_id": "T57",
+        "theme_name": "ads / need ads / money",
+        "one_line_summary": "ads / need ads / money",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "why are you making me watch an ad before i even open the app. its too much",
+          "Very good app (if you have premium) if you aren't willing to pay monthly then don't bother getting the app.",
+          "I don't understand why u want money everytime I love the app but this is too much.",
+          "Always so many ads but super app",
+          "The amount of paywalls this app has is sickening"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: ads, need ads, money, remove ads, ads opening, download good, mobile, sickening",
+        "what_users_want_instead": "ads, need ads, money, remove ads, ads opening"
+      },
+      {
+        "theme_id": "T58",
+        "theme_name": "mix / mixing / mixing feature",
+        "one_line_summary": "mix / mixing / mixing feature",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Working with the new mixing feature is driving me insane",
+          "I love the mixing feature",
+          "I love the mixing feature",
+          "I love the mixing feature",
+          "Beasties & Friends Mix"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: mix, mixing, mixing feature, feature, guitar, ive heard, reference, guitar tone",
+        "what_users_want_instead": "mix, mixing, mixing feature, feature, guitar"
+      },
+      {
+        "theme_id": "T59",
+        "theme_name": "house / deep / house 2026",
+        "one_line_summary": "house / deep / house 2026",
+        "estimated_frequency_pct": 0.7,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Deep Chilled House",
+          "Deep House 2026 Ibiza - Dance mix",
+          "Deep House 2026 ✨",
+          "Made a chill house playlist for late-night drives, pre-drinks, and easy background vibes",
+          "My 35 Hour Japanese Playlist"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: house, deep, house 2026, playlists, 2026 need, chill, playlists like, need playlists",
+        "what_users_want_instead": "house, deep, house 2026, playlists, 2026 need"
+      },
+      {
+        "theme_id": "T60",
+        "theme_name": "lyrics / lyric / issue",
+        "one_line_summary": "lyrics / lyric / issue",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Also the background colour for full screen lyrics can’t be adjusted",
+          "No more lyrics in full screen?",
+          "Display Lyrics Issue",
+          "Lyric issue",
+          "The lyrics feature on Spotify sucks"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: lyrics, lyric, issue, display, screen, desktop, background, beat",
+        "what_users_want_instead": "lyrics, lyric, issue, display, screen"
+      },
+      {
+        "theme_id": "T61",
+        "theme_name": "skip / skips / order",
+        "one_line_summary": "skip / skips / order",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "without premium we can't even skip a song that we don't want to listen",
+          "I mean I do like using Spotify but why only give us only a skips. like I want to be able to skip a song without having to worry about how many I have left.",
+          "you can't even skip songs too much now",
+          "I only have 6 skips in an hour",
+          "You can’t play songs in your order unless you get premium"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: skip, skips, order, premium, need skip, need ability, ability, play order",
+        "what_users_want_instead": "skip, skips, order, premium, need skip"
+      },
+      {
+        "theme_id": "T62",
+        "theme_name": "respect / feels like / hope",
+        "one_line_summary": "respect / feels like / hope",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "A bit late to the party but here is a cool song about Respect that I love since my childhood",
+          "Hope that this feels like the right track to put on while driving home on the highway for you, as much as it does for me!",
+          "Hope that this feels like the right track to put on while driving home on the highway for you, as much as it does for me!",
+          "i literally love u",
+          "Hope that this feels like the right track to put on while driving home on the highway for you, as much as it does for me!"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: respect, feels like, hope, feels, home, driving, right, track",
+        "what_users_want_instead": "respect, feels like, hope, feels, home"
+      },
+      {
+        "theme_id": "T63",
+        "theme_name": "repetitive listening / repetitive / need feature",
+        "one_line_summary": "repetitive listening / repetitive / need feature",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "I'm spamming the same songs",
+          "making too many songs?",
+          "I listened to Live Forever like 130 times in 6 months.",
+          "whenever more than one person tries to listen at the same time it stops working!",
+          "The auto queue almost always knows what I am feeling and plays songs that’s so close to what I need to hear at that moment"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: repetitive listening, repetitive, need feature, listening, limited, person, listen, forever",
+        "what_users_want_instead": "repetitive listening, repetitive, need feature, listening, limited"
+      },
+      {
+        "theme_id": "T64",
+        "theme_name": "2025 / wrapped / spotifywrapped",
+        "one_line_summary": "2025 / wrapped / spotifywrapped",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Spotify Wrapped 2025 for Wez G",
+          "Spotify Wrapped Revealed Everyone’s ‘Listening Age’: Here Are The Funniest Reactions",
+          "Spotify Wrapped Revealed Everyone’s ‘Listening Age’: Here Are The Funniest Reactions",
+          "I am an old Blind fart and I’ve been a loyal listener of yours since 2019 really enjoy every podcast you put out",
+          "DJ got us falling in love again… #2025 # SpotifyWrapped"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: 2025, wrapped, spotifywrapped, age, year, reactions, podcast, 2019",
+        "what_users_want_instead": "2025, wrapped, spotifywrapped, age, year"
+      },
+      {
+        "theme_id": "T65",
+        "theme_name": "2026 playlist / openair 2026 / openair",
+        "one_line_summary": "2026 playlist / openair 2026 / openair",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Check out my curated playlist for Mallefeld XXL Openair 2026",
+          "Check out my curated playlist for ⭐Mallefeld XXL Openair 2026⭐",
+          "Check out my curated playlist for ⭐Mallefeld XXL Openair 2026⭐",
+          "Techno Playlist to boost your weekend",
+          "Would anyone want to give me a vibe/mood/theme/narrative, and I'll try and curate something for you?"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: 2026 playlist, openair 2026, openair, curated playlist, 2026, curated, check, mood",
+        "what_users_want_instead": "2026 playlist, openair 2026, openair, curated playlist, 2026"
+      },
+      {
+        "theme_id": "T66",
+        "theme_name": "stars / review / 10",
+        "one_line_summary": "stars / review / 10",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Just 5 stars",
+          "you had my review deleted so you will always have a one-star review from me from here on out",
+          "it feels like I should give a 5 star rating, but because this is a paid for service and there's always room for improvement you get 4.",
+          "5 estrellas",
+          "again 5star"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: stars, review, 10, room, needs internet, improvement, star, feels like",
+        "what_users_want_instead": "stars, review, 10, room, needs internet"
+      },
+      {
+        "theme_id": "T67",
+        "theme_name": "new album / albums / album",
+        "one_line_summary": "new album / albums / album",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "a true weekly offering of every new ALBUM",
+          "The Cramps are releasing a new album featuring unreleased demos from ’77?",
+          "The Cramps are releasing a new album featuring unreleased demos from ’77?",
+          "RECOMMENDED ALBUM",
+          "New Extension: Better Discography (separation of singles and EPs, yay!)"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: new album, albums, album, releasing, featuring, unreleased, need new, new",
+        "what_users_want_instead": "new album, albums, album, releasing, featuring"
+      },
+      {
+        "theme_id": "T68",
+        "theme_name": "artists / affordable / artists need",
+        "one_line_summary": "artists / affordable / artists need",
+        "estimated_frequency_pct": 0.6,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "pay artists more!",
+          "You charge too much and don’t give artists enough",
+          "very overpriced for what they offer to the artists and listeners",
+          "each month paying 199 but no good waste of money no good song",
+          "Updating the price again and again without any better deals for artists is frustrating"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: artists, affordable, artists need, album art, pay, pricing, money, need affordable",
+        "what_users_want_instead": "artists, affordable, artists need, album art, pay"
+      },
+      {
+        "theme_id": "T69",
+        "theme_name": "mistake / worse / feel like",
+        "one_line_summary": "mistake / worse / feel like",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "I’ve landed here sort of by mistake and honestly, I figure it’s just another one of my million and one failed attempts trying to see justice over the wrong.",
+          "I m mentally tired and exhausted not able to push life anymore it's feel like burdon",
+          "U keep getting worse and worse go back the old ways",
+          "Life changing decision that I need help with.",
+          "Are we becoming too eager to destroy people over every mistake?"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: mistake, worse, feel like, ways, feel, old, failed, getting worse",
+        "what_users_want_instead": "mistake, worse, feel like, ways, feel"
+      },
+      {
+        "theme_id": "T70",
+        "theme_name": "chasing horizon / feeling rush / touching sky",
+        "one_line_summary": "chasing horizon / feeling rush / touching sky",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "In my head this is music for running, being in nature, focused on your own thoughts and goals.",
+          "Chasing the horizon, touching the sky, and feeling the rush of pure freedom.",
+          "Chasing the horizon, touching the sky, and feeling the rush of pure freedom.",
+          "One of the wonders of the modern world - it astounds me every day.",
+          "In my head this is music for running, being in nature, focused on your own thoughts and goals."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: chasing horizon, feeling rush, touching sky, goals, horizon, horizon touching, rush, rush pure",
+        "what_users_want_instead": "chasing horizon, feeling rush, touching sky, goals, horizon"
+      },
+      {
+        "theme_id": "T71",
+        "theme_name": "student / premium student / plan",
+        "one_line_summary": "student / premium student / plan",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "I am unable to change my plan into the student premium",
+          "You can switch to Premium Student here",
+          "You can switch to Premium Student here",
+          "If you still haven't been able to select the Student plan",
+          "I can't proceed with premium for the students"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: student, premium student, plan, switch, premium, unable, trying subscribe, need change",
+        "what_users_want_instead": "student, premium student, plan, switch, premium"
+      },
+      {
+        "theme_id": "T72",
+        "theme_name": "chillwave / recordings / vocal",
+        "one_line_summary": "chillwave / recordings / vocal",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 3,
+        "representative_quotes": [
+          "Interesting ways to introduce new song tracks",
+          "How can I make my bedroom recordings sound like live band tracks?",
+          "Vocal Chillwave Mix",
+          "The best Way for organize ur music???",
+          "Multi-instrumentalists - how do you manage your practice time across all these different instruments?"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: chillwave, recordings, vocal, bedroom, experience make, pop punk, recording, voice",
+        "what_users_want_instead": "chillwave, recordings, vocal, bedroom, experience make"
+      },
+      {
+        "theme_id": "T73",
+        "theme_name": "sleep / playlists like / need playlists",
+        "one_line_summary": "sleep / playlists like / need playlists",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "The playlist I sleep to",
+          "Stress Off Night - Sleep & Relax mix",
+          "Deep Sleep",
+          "Playlist about intense longing and obsessive crush?",
+          "My grief processing playlist"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: sleep, playlists like, need playlists, relaxation, playlists, processing, magical, nature",
+        "what_users_want_instead": "sleep, playlists like, need playlists, relaxation, playlists"
+      },
+      {
+        "theme_id": "T74",
+        "theme_name": "connect / option / google",
+        "one_line_summary": "connect / option / google",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 5,
+        "representative_quotes": [
+          "Thank you for your reply I tried moving to very high but still cant see the option.",
+          "On my Xiaomi tablet I can select my AVR and change whether I cast via Google Cast or Spotify Connect. However by my Samsung s23 ultra I dont have this option?",
+          "Switching it to 'Very High' should make the Connect picker appear as well if I'm correct about this one.",
+          "The latest version of spotify app which shows spotify connect option to my NAD is 9.0.78.1116",
+          "I cannot see Spotify Connect in the app anymore"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: connect, option, google, need option, change, use connect, phone, tried",
+        "what_users_want_instead": "connect, option, google, need option, change"
+      },
+      {
+        "theme_id": "T75",
+        "theme_name": "rodrigo / sad / girl",
+        "one_line_summary": "rodrigo / sad / girl",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Spectrum Pulse - Olivia Rodrigo, ‘you seem pretty sad for a girl so in love’, and Why The Hipster Dies Lonely",
+          "Olivia Rodrigo Earns Third Consecutive No. 1 on Albums Chart With ‘You Seem Pretty Sad for a Girl So in Love’",
+          "Olivia Rodrigo achieves the biggest UK opening week of her career as you seem pretty sad for a girl so in love clinches Number 1",
+          "The Madonna Interview - Interview Magazine",
+          "Olivia Rodrigo Scores Third No. 1 Album on Billboard 200 With ‘You Seem Pretty Sad for a Girl So in Love’"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: rodrigo, sad, girl, pretty, career, interview, pulse, billboard 200",
+        "what_users_want_instead": "rodrigo, sad, girl, pretty, career"
+      },
+      {
+        "theme_id": "T76",
+        "theme_name": "save / save save / video",
+        "one_line_summary": "save / save save / video",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Save 4 Save",
+          "SAVE 4 SAVE",
+          "Save 4 save",
+          "Is there a bug with the one save thing?",
+          "follow4follow!!! save 4 save!!!"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: save, save save, video, dont option, buttons, indie rock, captures, option",
+        "what_users_want_instead": "save, save save, video, dont option, buttons"
+      },
+      {
+        "theme_id": "T77",
+        "theme_name": "dance / club / upbeat",
+        "one_line_summary": "dance / club / upbeat",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Hype dance music",
+          "Guard dance warm up songs over the years",
+          "Upbeat dance songs to dance to any time",
+          "Please listen to my fun club song \"In Heat\".",
+          "Please listen to my fun club song \"In Heat\"."
+        ],
+        "root_cause_hypothesis": "Cluster driven by: dance, club, upbeat, warm, hype, fun, need warm, years need",
+        "what_users_want_instead": "dance, club, upbeat, warm, hype"
+      },
+      {
+        "theme_id": "T78",
+        "theme_name": "aimusic / instrumental / original",
+        "one_line_summary": "aimusic / instrumental / original",
+        "estimated_frequency_pct": 0.5,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "# valeriededo # originalsong # aisong # aimusic # music Cannibal. Full Song.",
+          "# valeriededo # aimusic # music Cannibal. Full Song (Instrumental). Original music.",
+          "# valeriededo # aimusic # music Cannibal. Full Song (Instrumental). Original music.",
+          "Meryem Aboulouafa - Breath of Roma # discoverWeekly",
+          "✅ Meryem Aboulouafa - Breath of Roma # discoverWeekly https:// youtu.be/SjDfGPqGby0"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: aimusic, instrumental, original, discoverweekly https, discoverweekly, https",
+        "what_users_want_instead": "aimusic, instrumental, original, discoverweekly https, discoverweekly"
+      },
+      {
+        "theme_id": "T79",
+        "theme_name": "goinia / goinia jannricardo / jannricardo",
+        "one_line_summary": "goinia / goinia jannricardo / jannricardo",
+        "estimated_frequency_pct": 0.4,
+        "dominant_segment": "unknown",
+        "severity": 2,
+        "representative_quotes": [
+          "Olha pras Estrelas Joyce Alane #Goiânia #jannRicardo #JoyceAlane #música #music #Spotify",
+          "carne fraca Totô de Babalong #Goiânia #jannRicardo #música #music #Spotify #TotôDeBabalong",
+          "News 📚 ✍ Al via Beats of Pompeii Prende il via mercoledù 24 giugno 2026 la terza edizione di B.O.P. – Beats of Pompeii, il festival che trasforma l'Anfiteatro del Parco Archeologico di Pompei in un palcoscenico [...] a cura di Giuliano Delli Paoli #Ondarock #MusicianSky #MusicSky #Music",
+          "Ganhando e Gozando Puterrier, Pedro Bala",
+          "Vou Investir em Você Puterrier, Mc Carol, LB Único #Goiânia #jannRicardo #LBÚnico #música #McCarol #music #Puterrier #Spotify"
+        ],
+        "root_cause_hypothesis": "Cluster driven by: goinia, goinia jannricardo, jannricardo, msica, di, beats, il, intro",
+        "what_users_want_instead": "goinia, goinia jannricardo, jannricardo, msica, di"
+      }
+    ]
+  },
+  "segment_breakdown": {
+    "unknown": 1885
+  }
+}

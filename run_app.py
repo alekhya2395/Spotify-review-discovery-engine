@@ -35,7 +35,7 @@ def _wait_for_backend(url: str, timeout: float = 60.0) -> bool:
 
 @app.command()
 def main(
-    port: int = typer.Option(8001, "--backend-port"),
+    port: int = typer.Option(8000, "--backend-port"),
     frontend_port: int = typer.Option(3000, "--frontend-port"),
     clean: bool = typer.Option(True, "--clean/--no-clean", help="Stop stale servers first."),
 ) -> None:

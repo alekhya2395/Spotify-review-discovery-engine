@@ -1,7 +1,7 @@
 function apiRoot(): string {
   // Browser: same-origin proxy (no CORS, works even if backend URL differs)
   if (typeof window !== "undefined") return "/backend-api";
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8001";
+  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
   return `${base.replace(/\/$/, "")}/api`;
 }
 
@@ -27,7 +27,9 @@ async function jget<T>(path: string): Promise<T> {
   return res.json();
 }
 
-async function jpost<T>(path: string, body: unknown): Promise<T> {
+async function jpost<T>(path: string, body: unknown, timeoutMs = 15000): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${apiRoot()}${path}`, {
@@ -35,11 +37,14 @@ async function jpost<T>(path: string, body: unknown): Promise<T> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
+      signal: controller.signal,
     });
   } catch {
     throw new Error(
       "Cannot reach the API. Run: python run_app.py (or python run_backend.py in a separate terminal)."
     );
+  } finally {
+    clearTimeout(timer);
   }
   if (!res.ok) {
     let detail = "";
@@ -135,9 +140,13 @@ export const api = {
   },
   chat: async (question: string, history: ChatMessage[]) => {
     const prior = history.filter((m) => m.content.trim().toLowerCase() !== question.trim().toLowerCase());
-    return jpost<{ answer: string; grounding_size_chars: number }>("/chat", {
-      question,
-      history: prior.slice(-12),
-    });
+    return jpost<{ answer: string; grounding_size_chars: number }>(
+      "/chat",
+      {
+        question,
+        history: prior.slice(-12),
+      },
+      60000
+    );
   },
 };

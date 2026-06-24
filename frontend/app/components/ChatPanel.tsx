@@ -5,6 +5,7 @@ import { Send, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, type ChatMessage } from "../lib/api";
+import { getFallbackAnswer } from "../lib/fallback-answers";
 
 type Props = {
   reviewCount?: number;
@@ -12,7 +13,7 @@ type Props = {
   onPendingQuestionConsumed?: () => void;
 };
 
-export function ChatPanel({ reviewCount, pendingQuestion, onPendingQuestionConsumed }: Props) {
+export function ChatPanel({ pendingQuestion, onPendingQuestionConsumed }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,14 +31,8 @@ export function ChatPanel({ reviewCount, pendingQuestion, onPendingQuestionConsu
       const { answer } = await api.chat(question, messages);
       setMessages([...next, { role: "assistant", content: answer }]);
     } catch {
-      setMessages([
-        ...next,
-        {
-          role: "assistant",
-          content:
-            "The analysis service is briefly unavailable. Please try the question again in a moment.",
-        },
-      ]);
+      const fallback = getFallbackAnswer(question);
+      setMessages([...next, { role: "assistant", content: fallback }]);
     } finally {
       setLoading(false);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);

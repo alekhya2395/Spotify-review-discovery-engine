@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 
-PORTS = (3000, 3001, 8000)
+PORTS = (3000, 3001, 8000, 8001)
 
 
 def _pids_on_port(port: int) -> set[int]:

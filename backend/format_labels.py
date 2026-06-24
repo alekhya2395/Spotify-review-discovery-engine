@@ -41,17 +41,23 @@ PAIN_INSIGHT: dict[str, str] = {
 
 QUESTION_TOPICS: dict[str, tuple[str, ...]] = {
     "discovery": ("discover", "find", "new music", "fresh", "recommend", "explore", "autoplay",
-                  "playlist", "discover weekly", "algorithm"),
+                  "playlist", "discover weekly", "algorithm", "skip", "dismiss", "reject",
+                  "suggestion", "radio", "mix", "improve discovery"),
     "pricing": ("price", "pricing", "cost", "premium", "subscription", "expensive", "cheap",
-                "family plan", "student", "free", "paywall", "ads"),
-    "ui": ("ui", "ux", "design", "navigation", "interface", "layout", "menu", "button",
-           "confusing", "hard to find"),
+                "family plan", "student", "free", "paywall", "ads", "ad ", "pay", "worth",
+                "money", "tier"),
+    "ui": ("ui", "ux", "interface", "design", "navigation", "layout", "menu", "button",
+           "confusing", "hard to find", "usability", "screen", "update", "redesign"),
     "performance": ("crash", "bug", "slow", "lag", "loading", "freeze", "stutter", "performance",
-                    "stability"),
-    "social": ("social", "share", "collaborate", "friend", "group", "playlist sharing"),
-    "catalog": ("catalog", "library", "missing", "song not", "track not", "podcast", "audiobook"),
-    "audio": ("audio", "sound", "quality", "bitrate", "bluetooth", "headphone"),
-    "segment": ("segment", "user type", "persona", "audience", "demographic"),
+                    "stability", "glitch", "not working", "freeze", "buffer"),
+    "social": ("social", "share", "collaborate", "friend", "group", "playlist sharing",
+               "together", "follow", "community"),
+    "catalog": ("catalog", "library", "missing", "song not", "track not", "podcast", "audiobook",
+                "unavailable", "region"),
+    "audio": ("audio", "sound", "quality", "bitrate", "bluetooth", "headphone", "speaker",
+              "volume", "lossless"),
+    "segment": ("segment", "user type", "persona", "audience", "demographic", "casual",
+                "power user", "new user", "free tier user"),
 }
 
 OFF_TOPIC_MARKERS = (
