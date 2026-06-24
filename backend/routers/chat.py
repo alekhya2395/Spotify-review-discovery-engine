@@ -24,12 +24,6 @@ from pydantic import BaseModel, Field
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from rag import build_review_context  # noqa: E402
-from format_labels import (  # noqa: E402
-    PAIN_INSIGHT,
-    detect_topic,
-    format_pain,
-    pain_lines,
-)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -37,7 +31,7 @@ logger = logging.getLogger(__name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant")
 GROQ_FALLBACK_MODEL = os.getenv("GROQ_CHAT_FALLBACK_MODEL", "llama-3.1-8b-instant")
-GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "8"))
+GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "12"))
 
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_CHARS = 600
@@ -124,9 +118,10 @@ INTENTS: dict[str, tuple[str, ...]] = {
         "what listening", "music consumption",
     ),
     "repetition": (
-        "repeat", "repetitive", "same content", "same songs", "same artists",
-        "loop", "stuck listening", "causes users to repeatedly",
-        "why do users listen to the same",
+        "repeat", "repetitive", "repeatedly", "same content", "same songs", "same artists",
+        "same music", "loop", "stuck listening", "causes users to repeatedly",
+        "why do users listen to the same", "listen to the same", "over and over",
+        "monoton", "again and again",
     ),
     "segments": (
         "segment", "user type", "different users", "which users",
@@ -568,157 +563,37 @@ def _trim_history(history: list[dict] | None, question: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Question-aware local answer (used when Groq fails or output is incomplete)
+# Intent-based fallback — question-specific answers when Groq is unavailable
 # ---------------------------------------------------------------------------
 
-_TOPIC_OPENERS: dict[str, str] = {
-    "discovery": "Feedback on music discovery highlights difficulty finding fresh artists and breaking out of repetitive recommendation loops.",
-    "pricing": "Reviews about pricing and subscriptions emphasize Premium value, ad load on the free tier, and plan friction.",
-    "ui": "UI and navigation feedback centers on confusing layouts, buried features, and disruptive redesigns.",
-    "performance": "Stability complaints focus on crashes, slow loads, and playback interruptions during everyday listening.",
-    "social": "Social and sharing feedback points to underdeveloped collaborative and friend-based discovery features.",
-    "catalog": "Catalog feedback highlights missing tracks, regional gaps, and mixed music versus podcast experiences.",
-    "audio": "Audio quality feedback covers bitrate perception, Bluetooth handoff, and device-specific playback issues.",
-    "segment": "Segment-related feedback shows different pain patterns across casual listeners, power users, and free-tier users.",
-    "general": "Indexed review feedback surfaces recurring themes about discovery, recommendations, control, and overall product experience.",
-}
+
+def _intent_fallback_answer(question: str) -> str:
+    """Return a question-tailored 4-section answer from the intent library."""
+    intent = _detect_intent(question)
+    logger.info("chat fallback intent=%s question=%r", intent, question[:80])
+    text = FALLBACK_ANSWERS.get(intent, FALLBACK_ANSWERS["general"])
+    return _strip_numbers_and_quotes(text)
 
 
-def _question_label(question: str) -> str:
-    q = question.strip().rstrip("?").strip()
-    if not q:
-        return "your question"
-    return q[0].upper() + q[1:] if len(q) > 1 else q.upper()
+def _is_generic_local_answer(text: str) -> bool:
+    """Detect the old data-template answers that ignore the question topic."""
+    markers = (
+        "Indexed review feedback surfaces recurring themes",
+        "Users report ongoing friction related to technical",
+        "Prioritize the pain areas most tied to the question asked",
+    )
+    return any(m in text for m in markers)
 
 
-def _actions_for_question(topic: str, question: str) -> list[str]:
-    q = question.lower()
-    actions_by_topic: dict[str, list[str]] = {
-        "discovery": [
-            "Build dedicated exploration surfaces beyond algorithmic playlists.",
-            "Add user controls for discovery intensity and genre adventurousness.",
-            "Inject novelty into autoplay and radio without sacrificing session flow.",
-        ],
-        "pricing": [
-            "Clarify Premium value with features users can immediately perceive.",
-            "Rebalance free-tier ads to reduce listening disruption.",
-            "Simplify family and student plan enrollment and verification.",
-        ],
-        "ui": [
-            "Reduce taps on high-frequency flows like save, share, and queue.",
-            "Roll out major UI changes gradually with clearer migration paths.",
-            "Improve library organization for large collections.",
-        ],
-        "performance": [
-            "Prioritize crash-free playback as a top reliability metric.",
-            "Optimize load times on library, search, and playlist screens.",
-            "Improve Bluetooth reconnection and codec fallback behavior.",
-        ],
-        "social": [
-            "Expand collaborative playlists and friend-activity discovery.",
-            "Make in-app sharing faster and more contextual.",
-            "Test community-driven discovery around genres and moods.",
-        ],
-        "catalog": [
-            "Surface catalog availability transparently in search results.",
-            "Close high-friction regional and podcast catalog gaps.",
-            "Separate music and spoken-word discovery where users want focus.",
-        ],
-        "audio": [
-            "Make audio quality settings easier to find and understand.",
-            "Improve wireless playback consistency across common devices.",
-            "Evaluate perceptible quality improvements users value on Premium.",
-        ],
-        "segment": [
-            "Tailor onboarding and recommendations by listening style.",
-            "Build distinct experiences for casual versus power listeners.",
-            "Reduce free-tier friction in flows that drive eventual conversion.",
-        ],
-        "general": [
-            "Prioritize the pain areas most tied to the question asked.",
-            "Ship visible improvements in discovery and recommendation control.",
-            "Track theme movement over time to catch emerging complaints early.",
-        ],
-    }
-    actions = list(actions_by_topic.get(topic, actions_by_topic["general"]))
-    if any(w in q for w in ("skip", "dismiss", "ignore", "reject")):
-        actions.insert(0, "Strengthen negative feedback signals when users skip or dismiss recommendations.")
-    if any(w in q for w in ("improve", "better", "fix", "enhance")):
-        actions.insert(0, "Translate the top complaints behind this question into a focused product experiment.")
-    if any(w in q for w in ("leave", "churn", "cancel", "quit")):
-        actions.insert(0, "Address the retention drivers behind exit feedback before adding new features.")
-    return actions[:4]
-
-
-def _local_answer_from_context(question: str, payload: dict[str, Any]) -> str:
-    """Build a 4-section answer from indexed stats, themes, and matched reviews."""
-    stats = payload.get("dataset_stats") or {}
-    topic = detect_topic(question)
-    focus = _question_label(question)
-    opener = _TOPIC_OPENERS.get(topic, _TOPIC_OPENERS["general"])
-
-    pains = pain_lines(stats, question, limit=6, require_relevant=True)
-    if not pains:
-        pains = pain_lines(stats, question, limit=5, require_relevant=False)
-
-    pain_bullets: list[str] = []
-    seen_labels: set[str] = set()
-    for key, label, _ in pains:
-        insight = PAIN_INSIGHT.get(str(key).lower(), f"Users report ongoing friction related to {label.lower()}.")
-        pain_bullets.append(f"- **{label}**: {insight}")
-        seen_labels.add(label)
-
-    for rev in payload.get("matched_reviews") or []:
-        if len(pain_bullets) >= 5:
-            break
-        label = format_pain(str(rev.get("pain_category") or ""))
-        if label in seen_labels or label == "General Feedback":
-            continue
-        need = str(rev.get("unmet_need") or "").strip()
-        if need and need.lower() not in {"none", "nan", ""}:
-            pain_bullets.append(f"- **{label}**: Users want improvements around {need.lower()}.")
-        else:
-            key = str(rev.get("pain_category") or "").lower()
-            insight = PAIN_INSIGHT.get(key, f"Users describe friction related to {label.lower()}.")
-            pain_bullets.append(f"- **{label}**: {insight}")
-        seen_labels.add(label)
-
-    if not pain_bullets:
-        pain_bullets = [
-            "- **Music Discovery**: Users want easier ways to find fresh music beyond their existing taste profile.",
-            "- **Algorithm & Recommendations**: Suggestions feel repetitive and hard to steer toward better fits.",
-            "- **User Control**: Listeners want more agency over how recommendations evolve over time.",
-        ]
-
-    focus_bullets: list[str] = []
-    for key, label, _ in pains[:4]:
-        insight = PAIN_INSIGHT.get(str(key).lower())
-        if insight:
-            focus_bullets.append(f"- **{label}**: {insight}")
-    if not focus_bullets:
-        focus_bullets = [f"- **{label}**: Prioritize product work that directly reduces this friction." for label in list(seen_labels)[:4]]
-
-    actions = _actions_for_question(topic, question)
-    summary = f"Regarding **{focus}**, {opener}"
-
-    parts = [
-        f"**Summary**\n\n{summary}",
-        "**Key pain points**\n\n" + "\n".join(pain_bullets[:5]),
-        "**Product focus areas**\n\n" + "\n".join(focus_bullets[:5]),
-        "**Recommended actions**\n\n" + "\n".join(f"- {a}" for a in actions),
-    ]
-    return _strip_numbers_and_quotes("\n\n".join(parts))
-
-
-def _ensure_four_sections(answer: str, question: str, payload: dict[str, Any]) -> str:
-    """Fill any missing sections from indexed data."""
+def _ensure_four_sections(answer: str, question: str) -> str:
+    """Fill any missing sections from the intent-specific fallback."""
     sections = _split_into_sections(answer)
-    local = _split_into_sections(_local_answer_from_context(question, payload))
+    fallback = _split_into_sections(_intent_fallback_answer(question))
     for name in SECTION_ORDER:
-        if not sections.get(name) and local.get(name):
-            sections[name] = local[name]
+        if not sections.get(name) and fallback.get(name):
+            sections[name] = fallback[name]
     parts = [f"**{name}**\n\n{sections[name].strip()}" for name in SECTION_ORDER if sections.get(name)]
-    return "\n\n".join(parts) if parts else _local_answer_from_context(question, payload)
+    return "\n\n".join(parts) if parts else _intent_fallback_answer(question)
 
 
 # ---------------------------------------------------------------------------
@@ -816,13 +691,13 @@ def chat(req: ChatRequest) -> ChatResponse:
     if raw:
         cleaned = _strip_numbers_and_quotes(raw)
         normalized = _enforce_section_order(cleaned)
-        if len(normalized.strip()) >= 80:
+        if len(normalized.strip()) >= 80 and not _is_generic_local_answer(normalized):
             answer = normalized
             if not _has_required_sections(answer):
-                answer = _ensure_four_sections(answer, req.question, payload)
+                answer = _ensure_four_sections(answer, req.question)
 
     if not answer:
-        answer = _local_answer_from_context(req.question, payload)
+        answer = _intent_fallback_answer(req.question)
 
     answer = _strip_numbers_and_quotes(answer)
 
