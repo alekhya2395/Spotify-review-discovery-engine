@@ -1,8 +1,29 @@
-function apiRoot(): string {
-  // Browser: same-origin proxy (no CORS, works even if backend URL differs)
+function normalizeApiBase(raw: string): string {
+  const trimmed = raw.trim().replace(/\/api\/?$/i, "").replace(/\/$/, "");
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+/** Resolve the API base URL for the current runtime. */
+export function apiRoot(): string {
+  const publicUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (publicUrl) {
+    const base = normalizeApiBase(publicUrl);
+    if (base) return `${base}/api`;
+  }
+
+  // Browser fallback: same-origin proxy (local dev or when only BACKEND_URL is set server-side)
   if (typeof window !== "undefined") return "/backend-api";
-  const base = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-  return `${base.replace(/\/$/, "")}/api`;
+
+  // SSR / server-side fetch
+  const serverUrl = process.env.BACKEND_URL;
+  if (serverUrl) {
+    const base = normalizeApiBase(serverUrl);
+    if (base) return `${base}/api`;
+  }
+
+  return "http://127.0.0.1:8001/api";
 }
 
 async function jget<T>(path: string): Promise<T> {
@@ -11,7 +32,7 @@ async function jget<T>(path: string): Promise<T> {
     res = await fetch(`${apiRoot()}${path}`, { cache: "no-store" });
   } catch {
     throw new Error(
-      "Cannot reach the API. Run: python run_app.py (or python run_backend.py in a separate terminal)."
+      "Cannot reach the review API. Check that the Railway backend is running and NEXT_PUBLIC_API_URL is set on Vercel."
     );
   }
   if (!res.ok) {
@@ -39,9 +60,12 @@ async function jpost<T>(path: string, body: unknown, timeoutMs = 15000): Promise
       cache: "no-store",
       signal: controller.signal,
     });
-  } catch {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("The analysis request timed out. Please try again.");
+    }
     throw new Error(
-      "Cannot reach the API. Run: python run_app.py (or python run_backend.py in a separate terminal)."
+      "Cannot reach the review API. Check NEXT_PUBLIC_API_URL on Vercel and ALLOWED_ORIGINS on Railway."
     );
   } finally {
     clearTimeout(timer);
@@ -146,7 +170,7 @@ export const api = {
         question,
         history: prior.slice(-12),
       },
-      60000
+      90000
     );
   },
 };

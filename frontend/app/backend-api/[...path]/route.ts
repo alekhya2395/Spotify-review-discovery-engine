@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
-function backendOrigin(): string {
+function backendOrigin(): string | null {
   const raw = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "").trim();
   if (!raw) {
+    if (process.env.VERCEL) return null;
     return "http://127.0.0.1:8001";
   }
   let url = raw.replace(/\/api\/?$/i, "").replace(/\/$/, "");
@@ -16,8 +18,19 @@ function backendOrigin(): string {
 }
 
 async function proxy(req: NextRequest, pathSegments: string[]) {
+  const origin = backendOrigin();
+  if (!origin) {
+    return NextResponse.json(
+      {
+        detail:
+          "BACKEND_URL is not configured on Vercel. Set BACKEND_URL and NEXT_PUBLIC_API_URL to your Railway URL, then redeploy.",
+      },
+      { status: 503 }
+    );
+  }
+
   const subpath = pathSegments.join("/");
-  const target = `${backendOrigin()}/api/${subpath}${req.nextUrl.search}`;
+  const target = `${origin}/api/${subpath}${req.nextUrl.search}`;
 
   const headers = new Headers();
   const contentType = req.headers.get("content-type");

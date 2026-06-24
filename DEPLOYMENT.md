@@ -79,7 +79,9 @@ In Vercel → **Settings → Environment Variables**, add (Production + Preview)
 | `BACKEND_URL` | `https://<your-railway-app>.up.railway.app` |
 | `NEXT_PUBLIC_API_URL` | `https://<your-railway-app>.up.railway.app` |
 
-The frontend talks to the backend via a same-origin rewrite (`/backend-api/*` → `<BACKEND_URL>/api/*`) which avoids CORS issues entirely.
+**Important:** `NEXT_PUBLIC_API_URL` must be set before the Vercel build — it is baked into the client bundle. After changing it, trigger a **Redeploy**.
+
+The browser calls Railway directly for API requests (avoids Vercel serverless timeouts on chat). Railway CORS automatically allows any `*.vercel.app` origin.
 
 ### 3.3 Deploy
 
