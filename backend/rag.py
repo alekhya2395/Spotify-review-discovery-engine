@@ -105,6 +105,18 @@ def _text_search(df: pd.DataFrame, question: str, k: int = 20) -> pd.DataFrame:
         for col in cols:
             series = df[col].fillna("").astype(str).str.lower()
             scores += series.str.contains("podcast", regex=False).astype(int) * 3
+    elif any(w in q for w in (
+        "listening behavior", "listening behaviours", "listening habit", "listening goal",
+        "trying to achieve", "what are users trying", "how do users listen",
+    )):
+        if "pain_category" in df.columns:
+            scores += df["pain_category"].fillna("").astype(str).str.lower().eq(
+                "listening_behavior"
+            ).astype(int) * 6
+        for col in cols:
+            series = df[col].fillna("").astype(str).str.lower()
+            scores += series.str.contains("shuffle", regex=False).astype(int) * 2
+            scores += series.str.contains("playlist", regex=False).astype(int) * 1
 
     ranked = df.loc[scores > 0].copy()
     if ranked.empty:

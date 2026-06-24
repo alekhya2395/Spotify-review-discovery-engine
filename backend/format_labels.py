@@ -61,6 +61,12 @@ QUESTION_TOPICS: dict[str, tuple[str, ...]] = {
     "repetition": ("repeat", "repetitive", "repeatedly", "same content", "same songs", "same artists",
                    "same music", "same playlist", "over and over", "again and again", "monoton",
                    "listen to the same", "stuck listening", "re-listen"),
+    "listening_behavior": (
+        "listening behavior", "listening behaviours", "listening habit", "listening habits",
+        "listening pattern", "listening patterns", "listening goal", "listening goals",
+        "trying to achieve", "what are users trying", "how do users listen", "music consumption",
+        "listening mode", "listening modes", "use spotify for", "when users listen",
+    ),
 }
 
 FOCUS_AREA_BY_TOPIC: dict[str, tuple[str, ...]] = {
@@ -109,10 +115,15 @@ FOCUS_AREA_BY_TOPIC: dict[str, tuple[str, ...]] = {
         "Provide deeper discovery tools for power listeners versus casual users.",
         "Reduce free-tier friction in flows that support eventual conversion.",
     ),
+    "listening_behavior": (
+        "Support distinct listening modes (focus, workout, discovery, background) with tailored UX.",
+        "Improve shuffle and session continuity so playlists match user intent.",
+        "Separate taste signals by context so workout listening does not skew relax recommendations.",
+    ),
     "general": (
-        "Prioritize product work that directly addresses the question asked.",
-        "Ship visible improvements in discovery control and recommendation freshness.",
-        "Track emerging complaint themes over time to catch regressions early.",
+        "Address the specific friction themes surfaced in matched reviews for this question.",
+        "Ship targeted improvements on the highest-signal user requests from review data.",
+        "Track whether fixes reduce the complaints driving this question over time.",
     ),
 }
 
@@ -134,6 +145,9 @@ TOPIC_PAIN_ALLOWLIST: dict[str, frozenset[str]] = {
     "segment": frozenset({
         "listening_behavior", "discovery", "ads", "pricing",
         "recommendation_quality", "algorithm_repetition",
+    }),
+    "listening_behavior": frozenset({
+        "listening_behavior", "discovery", "recommendation_quality", "social_features",
     }),
 }
 
@@ -242,6 +256,17 @@ INTENT_TOPIC_SUMMARY: dict[str, dict[str, str]] = {
             "pathways, and transparency in how the algorithm shapes the listening experience."
         ),
     },
+    "listening_goals": {
+        "listening_behavior": (
+            "Users are trying to achieve distinct listening goals — smarter shuffle and playlist "
+            "control, mood- and activity-based sessions, background listening without disruption, "
+            "and tools to avoid getting stuck in repetitive playback loops."
+        ),
+        "general": (
+            "Users pursue varied listening goals spanning discovery, focus, social sharing, and "
+            "passive background listening — each needing different product support."
+        ),
+    },
 }
 
 INTENT_TOPIC_ACTIONS: dict[str, dict[str, tuple[str, ...]]] = {
@@ -267,6 +292,21 @@ INTENT_TOPIC_ACTIONS: dict[str, dict[str, tuple[str, ...]]] = {
             "Map the top discovery drop-off points from search to save and reduce friction.",
             "Audit Discover Weekly and autoplay for over-reliance on familiar artists.",
             "Add explicit novelty controls so users can escape taste echo chambers.",
+        ),
+    },
+    "listening_goals": {
+        "listening_behavior": (
+            "Research which listening modes users want (focus, workout, discovery, background) and map current gaps.",
+            "Prototype smarter shuffle that avoids short-loop repetition in large playlists.",
+            "Test context-aware sessions that keep mood and tempo consistent when autoplay kicks in.",
+            "Evaluate separate taste profiles for different listening contexts.",
+        ),
+    },
+    "pain_list": {
+        "pricing": (
+            "Benchmark ad load against competitors and set a target cap for music sessions.",
+            "Design a lighter ad experience specifically for podcast listening on free tier.",
+            "Survey churned free users on whether ad frequency was a primary exit driver.",
         ),
     },
 }
@@ -305,6 +345,12 @@ SPOTIFY_SIGNAL_WORDS = (
 def detect_topic(question: str) -> str:
     """Return the dominant pain topic for the question (or 'general')."""
     q = (question or "").lower()
+    if any(p in q for p in (
+        "listening behavior", "listening behaviours", "listening habit", "listening habits",
+        "listening pattern", "listening goal", "listening goals", "trying to achieve",
+        "what are users trying", "how do users listen", "music consumption",
+    )):
+        return "listening_behavior"
     if any(p in q for p in ("ad ", "ads", "advert", "free tier", "free plan")) and not any(
         p in q for p in ("discover", "recommend", "new music")
     ):
@@ -332,6 +378,11 @@ def detect_topic(question: str) -> str:
 def detect_question_intent(question: str) -> str:
     """Classify what kind of answer the question expects (why, opportunity, etc.)."""
     q = (question or "").lower().strip()
+    if any(p in q for p in (
+        "listening behavior", "listening behaviours", "listening goal", "listening goals",
+        "trying to achieve", "what are users trying", "how do users listen",
+    )):
+        return "listening_goals"
     if any(p in q for p in ("frustrat", "frustration", " annoy", "complaint", "complaints")):
         return "pain_list"
     if any(p in q for p in ("opportunit", "opportunities", "product bet", "growth lever", "invest in")):
@@ -519,6 +570,7 @@ def pain_lines(
     topic_priority: dict[str, list[str]] = {
         "discovery": ["discovery", "recommendation_quality", "algorithm_repetition", "listening_behavior"],
         "repetition": ["algorithm_repetition", "recommendation_quality", "listening_behavior", "discovery"],
+        "listening_behavior": ["listening_behavior", "recommendation_quality", "discovery", "social_features"],
         "pricing": ["pricing", "pricing_complaints", "ads"],
         "ui": ["ui_ux", "ui_ux_issues"],
         "performance": ["performance"],

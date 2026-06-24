@@ -770,7 +770,7 @@ def _collect_review_signals(
         if not pain_allowed_for_topic(key, topic):
             continue
         label = format_pain(key)
-        if label in seen_cats:
+        if label in seen_cats and topic != "listening_behavior":
             continue
 
         need = str(rev.get("unmet_need") or "").strip()
@@ -811,6 +811,18 @@ def _synthesize_summary(
             "outside the taste bubble, user-controlled recommendation novelty, and curator or "
             "social paths that surface unfamiliar artists without relying on past listening alone."
         )
+
+    if intent == "listening_goals" and topic == "listening_behavior":
+        if len(needs) >= 2:
+            return (
+                "Users are trying to achieve varied listening goals — including "
+                f"{needs[0].lower()} and {needs[1].lower()} — alongside mood-based sessions, "
+                "smarter playlist control, and uninterrupted background listening."
+            )
+        return summary_for_intent("listening_goals", "listening_behavior")
+
+    if intent == "listening_goals":
+        return summary_for_intent("listening_goals", topic)
 
     if intent == "pain_list" and topic == "pricing":
         return (
@@ -882,6 +894,7 @@ def _build_focus_section(
     area_labels = {
         "discovery": "Exploration",
         "repetition": "Listening diversity",
+        "listening_behavior": "Listening modes",
         "pricing": "Monetization",
         "ui": "Experience design",
         "performance": "Reliability",
@@ -967,6 +980,14 @@ def _build_actions_section(
                 "Survey churned free users on whether ad frequency was a primary exit driver.",
             ],
         },
+        "listening_goals": {
+            "listening_behavior": [
+                "Research which listening modes users want (focus, workout, discovery, background) and map current gaps.",
+                "Prototype smarter shuffle that avoids short-loop repetition in large playlists.",
+                "Test context-aware sessions that keep mood and tempo consistent when autoplay kicks in.",
+                "Evaluate separate taste profiles for different listening contexts.",
+            ],
+        },
     }
 
     preset = intent_actions.get(intent, {}).get(topic)
@@ -1003,7 +1024,9 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
     if not focus_bullets:
         focus_bullets = [f"- **Direction**: {line}" for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"])[:3]]
     if not action_items:
-        action_items = list(actions_for_intent(intent, topic))[:3] or ["Review matched feedback and prioritize a focused product experiment."]
+        action_items = list(actions_for_intent(intent, topic))[:4] or [
+            "Analyze matched review themes and define a focused two-week product experiment.",
+        ]
 
     parts = [
         f"**Summary**\n\n{summary}",
