@@ -1,14 +1,14 @@
+# Root Dockerfile — used when Railway service root is the repo root (not backend/).
+# If your Railway Root Directory is set to "backend", Railway uses backend/Dockerfile instead.
 FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# Install Python deps (pandas ships prebuilt wheels for linux/amd64 — no gcc needed)
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copy application + bundled review data
-COPY . .
+COPY backend/ .
 
 ENV PYTHONUNBUFFERED=1
 ENV DATA_DIR=./data

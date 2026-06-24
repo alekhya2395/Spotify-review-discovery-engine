@@ -29,9 +29,11 @@ The bundled review data (`backend/data/insights_*.csv`, `themes_*.json`, `discov
 1. Log in to Railway and click **New Project → Deploy from GitHub repo**.
 2. Pick this repository.
 3. After Railway creates the project, open the service’s **Settings** tab.
-4. Set **Root Directory** to `backend`.
-   - Railway builds from `backend/` using the included `Dockerfile` (more reliable than Nixpacks).
-5. In **Settings → Build**, confirm the builder is **Dockerfile** (auto-detected from `railway.toml`).
+4. **Root Directory** — choose **one** of these (both work now):
+   - **Option A (recommended):** leave Root Directory **empty** (repo root). Railway uses the root `Dockerfile` which copies `backend/` into the image.
+   - **Option B:** set Root Directory to `backend`. Railway uses `backend/Dockerfile` directly.
+5. In **Settings → Build**, confirm the builder is **Dockerfile** (set automatically via `railway.toml`).
+6. If the build still fails, add a service variable: `RAILWAY_DOCKERFILE_PATH` = `Dockerfile` (repo root) or `backend/Dockerfile` (if root dir is `backend`).
 
 ### 2.2 Set environment variables
 

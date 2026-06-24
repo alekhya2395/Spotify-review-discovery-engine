@@ -1,0 +1,5 @@
+# Force LF line endings for Docker/Railway builds (CRLF breaks Docker on Linux)
+Dockerfile text eol=lf
+*.sh text eol=lf
+railway.toml text eol=lf
+railway.json text eol=lf
