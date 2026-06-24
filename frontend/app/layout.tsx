@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Spotify Discovery Insights Engine",
+  title: "Spotify Review Discovery Engine",
   description:
-    "An AI-powered review analysis system that ingests App Store, Play Store and Reddit feedback to surface why users struggle with music discovery on Spotify.",
+    "AI-powered review analysis dashboard for Spotify — pain categories, sentiment, and searchable user insights.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-spotify-black text-spotify-text min-h-screen">{children}</body>
+      <body className="bg-app-bg text-app-text min-h-screen antialiased">{children}</body>
     </html>
   );
 }

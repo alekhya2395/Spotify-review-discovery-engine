@@ -13,6 +13,14 @@ from pathlib import Path
 
 import pandas as pd
 
+try:
+    from langdetect import DetectorFactory, detect
+
+    DetectorFactory.seed = 0
+    _HAS_LANGDETECT = True
+except ImportError:
+    _HAS_LANGDETECT = False
+
 ROOT = Path(__file__).resolve().parents[1]
 OUT = Path(__file__).resolve().parent / "data"
 STAMP = datetime.now(timezone.utc).strftime("%Y%m%d")
@@ -27,6 +35,59 @@ def _split_list(val) -> list[str]:
     return [x.strip() for x in str(val).split(" || ") if x.strip()]
 
 
+def _load_lang_map() -> dict[str, str | None]:
+    lang_map: dict[str, str | None] = {}
+    for path in ROOT.glob("data/raw/**/*.jsonl"):
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    rid = rec.get("review_id")
+                    if rid:
+                        lang_map[str(rid)] = rec.get("lang")
+        except OSError:
+            continue
+    return lang_map
+
+
+def _is_english(review_id: str, text: str | None, lang_map: dict[str, str | None]) -> bool:
+    lang = lang_map.get(str(review_id))
+    if lang:
+        return str(lang).lower() == "en"
+
+    quote = str(text or "").strip()
+    if len(quote) < 15:
+        return False
+    if not _HAS_LANGDETECT:
+        # Fallback: mostly ASCII Latin text when langdetect is unavailable.
+        ascii_ratio = sum(1 for ch in quote if ord(ch) < 128) / max(len(quote), 1)
+        return ascii_ratio >= 0.9
+
+    try:
+        return detect(quote) == "en"
+    except Exception:
+        return False
+
+
+def _review_text(row: pd.Series) -> str:
+    for col in ("verbatim_quote", "unmet_need", "pain_category"):
+        val = row.get(col)
+        if val is not None and str(val).strip().lower() not in {"", "none", "nan"}:
+            return str(val).strip()
+    return ""
+
+
+def _has_min_words(text: str, min_words: int = 5) -> bool:
+    """Keep reviews with more than 4 words (i.e. at least 5)."""
+    return len(text.split()) >= min_words
+
+
 def build_insights() -> Path:
     src = ROOT / "data" / "processed" / "insights.csv"
     if not src.exists():
@@ -34,6 +95,20 @@ def build_insights() -> Path:
 
     df = pd.read_csv(src)
     df = df.drop_duplicates(subset=["review_id"], keep="first").reset_index(drop=True)
+
+    lang_map = _load_lang_map()
+    english_mask = df.apply(
+        lambda row: _is_english(str(row["review_id"]), row.get("verbatim_quote"), lang_map),
+        axis=1,
+    )
+    before = len(df)
+    df = df[english_mask].reset_index(drop=True)
+    print(f"English-only filter: kept {len(df)} / {before} reviews")
+
+    before_words = len(df)
+    word_mask = df.apply(lambda row: _has_min_words(_review_text(row)), axis=1)
+    df = df[word_mask].reset_index(drop=True)
+    print(f"Min words filter (>4 words): kept {len(df)} / {before_words} reviews")
 
     def _sentiment_intensity(s) -> int:
         return SENTIMENT_SCORE.get(str(s).strip().lower(), 3)
@@ -46,6 +121,7 @@ def build_insights() -> Path:
     out = pd.DataFrame({
         "review_id": df["review_id"],
         "source": df["source"],
+        "sentiment": df["sentiment"].astype(str).str.lower(),
         "country": None,
         "rating": None,
         "pain_category": df["pain_category"],
@@ -55,7 +131,7 @@ def build_insights() -> Path:
         "verbatim_quote": df["verbatim_quote"],
         "sentiment_intensity": df["sentiment"].map(_sentiment_intensity),
         "geography": None,
-        "language_preference": None,
+        "language_preference": "en",
         "listening_style": df["segment"],
         "unmet_need": df["unmet_need"],
         "user_suggested_fix": df["unmet_need"],

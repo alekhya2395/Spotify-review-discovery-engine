@@ -1,23 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, type ChatMessage } from "../lib/api";
 
-const STARTERS = [
-  "What are the top 3 discovery pain points for Indian users?",
-  "Why do users fall into repetitive listening loops?",
-  "Which user segment should Spotify prioritize? Justify with evidence.",
-  "Suggest 2 product bets to fix the #1 discovery theme.",
-];
+type Props = {
+  reviewCount?: number;
+  pendingQuestion?: string;
+  onPendingQuestionConsumed?: () => void;
+};
 
-export function ChatPanel() {
+export function ChatPanel({ reviewCount, pendingQuestion, onPendingQuestionConsumed }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const lastPending = useRef<string | null>(null);
 
   const send = async (q?: string) => {
     const question = (q ?? input).trim();
@@ -27,55 +27,55 @@ export function ChatPanel() {
     setInput("");
     setLoading(true);
     try {
-      const { answer } = await api.chat(question, next);
+      const { answer } = await api.chat(question, messages);
       setMessages([...next, { role: "assistant", content: answer }]);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      setMessages([...next, { role: "assistant", content: `⚠ Chat failed: ${msg}` }]);
+    } catch {
+      setMessages([
+        ...next,
+        {
+          role: "assistant",
+          content:
+            "The analysis service is briefly unavailable. Please try the question again in a moment.",
+        },
+      ]);
     } finally {
       setLoading(false);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     }
   };
 
+  useEffect(() => {
+    const q = pendingQuestion?.trim();
+    if (!q || loading || q === lastPending.current) return;
+    lastPending.current = q;
+    void send(q);
+    onPendingQuestionConsumed?.();
+  }, [pendingQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div className="bg-spotify-gray border border-spotify-border rounded-xl flex flex-col h-[640px]">
-      <div className="px-5 py-4 border-b border-spotify-border flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-spotify-green" />
-        <h3 className="text-sm font-semibold text-white">Chat with your 8,000+ reviews</h3>
-        <span className="ml-auto text-xs text-spotify-muted">Grounded on themes + insights</span>
+    <div className="bg-app-panel border border-app-border rounded-lg flex flex-col min-h-[640px]">
+      <div className="px-5 py-4 border-b border-app-border flex items-center gap-2">
+        <Sparkles className="w-4 h-4 text-app-green" />
+        <h3 className="text-sm font-semibold text-white">Review Discovery Engine</h3>
+        <span className="ml-auto text-xs text-app-muted">AI-powered insights from user reviews</span>
       </div>
 
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
         {messages.length === 0 && (
-          <div className="space-y-4">
-            <p className="text-sm text-spotify-muted">
-              Ask any PM-style question. Answers are grounded on the extracted insights and themes, with verbatim quotes.
-            </p>
-            <div className="grid sm:grid-cols-2 gap-2">
-              {STARTERS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => send(s)}
-                  className="text-left text-sm p-3 bg-spotify-black border border-spotify-border rounded-lg hover:border-spotify-green hover:text-spotify-green transition"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-sm text-app-muted max-w-2xl">
+            Ask any question about Spotify user feedback — discovery challenges, recommendation issues,
+            listening patterns, user segments, or unmet needs. Each answer includes a summary,
+            key pain points, product focus areas, and recommended actions.
+          </p>
         )}
 
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-          >
+          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
             <div
               className={`max-w-[85%] rounded-xl px-4 py-3 ${
                 m.role === "user"
-                  ? "bg-spotify-green text-black font-medium"
-                  : "bg-spotify-black border border-spotify-border"
+                  ? "bg-app-green text-black font-medium"
+                  : "bg-app-bg border border-app-border"
               }`}
             >
               {m.role === "user" ? (
@@ -91,7 +91,7 @@ export function ChatPanel() {
 
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-spotify-black border border-spotify-border rounded-xl px-4 py-3">
+            <div className="bg-app-bg border border-app-border rounded-xl px-4 py-3">
               <div className="flex gap-1.5">
                 <Dot delay={0} />
                 <Dot delay={150} />
@@ -108,20 +108,20 @@ export function ChatPanel() {
           e.preventDefault();
           send();
         }}
-        className="p-3 border-t border-spotify-border flex gap-2"
+        className="p-3 border-t border-app-border flex gap-2"
       >
         <input
           type="text"
-          placeholder="Ask about pain points, segments, opportunities…"
+          placeholder="Ask about pain points, segments, discovery, unmet needs…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="flex-1 bg-spotify-black border border-spotify-border rounded-lg px-4 py-2 text-sm text-spotify-text focus:outline-none focus:border-spotify-green"
+          className="flex-1 bg-app-bg border border-app-border rounded-lg px-4 py-2 text-sm text-app-text focus:outline-none focus:border-app-green"
           disabled={loading}
         />
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="bg-spotify-green hover:bg-spotify-green/90 disabled:opacity-40 text-black font-medium px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
+          className="bg-app-green hover:bg-app-green/90 disabled:opacity-40 text-black font-medium px-4 py-2 rounded-lg flex items-center gap-2 text-sm"
         >
           <Send className="w-4 h-4" />
           Send
@@ -134,11 +134,8 @@ export function ChatPanel() {
 function Dot({ delay }: { delay: number }) {
   return (
     <span
-      className="w-1.5 h-1.5 bg-spotify-green rounded-full"
-      style={{
-        animation: "pulse 1.2s ease-in-out infinite",
-        animationDelay: `${delay}ms`,
-      }}
+      className="w-1.5 h-1.5 bg-app-green rounded-full animate-pulse"
+      style={{ animationDelay: `${delay}ms` }}
     />
   );
 }

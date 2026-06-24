@@ -17,8 +17,10 @@ def list_insights(
     geography: Optional[str] = None,
     listening_style: Optional[str] = None,
     source: Optional[str] = None,
-    discovery_only: bool = True,
+    discovery_only: bool = False,
     min_sentiment: Optional[int] = Query(None, ge=1, le=5),
+    q: Optional[str] = Query(None, min_length=1, max_length=200),
+    sentiment: Optional[str] = None,
 ) -> dict:
     df = load_insights_df()
     if df.empty:
@@ -27,6 +29,16 @@ def list_insights(
     view = df.copy()
     if discovery_only:
         view = view[view["is_discovery_related"] == True]  # noqa: E712
+    if q:
+        needle = q.strip().lower()
+        text_cols = [c for c in ("verbatim_quote", "specific_pain", "unmet_need", "user_suggested_fix", "pain_category") if c in view.columns]
+        if text_cols:
+            mask = False
+            for col in text_cols:
+                mask = mask | view[col].fillna("").astype(str).str.lower().str.contains(needle, regex=False)
+            view = view[mask]
+    if sentiment and "sentiment" in view.columns:
+        view = view[view["sentiment"].astype(str).str.lower() == sentiment.lower()]
     if pain_category:
         view = view[view["pain_category"] == pain_category]
     if geography:
@@ -45,7 +57,7 @@ def list_insights(
     slice_df = view.iloc[start:end]
 
     cols = [
-        "review_id", "source", "country", "rating", "pain_category",
+        "review_id", "source", "sentiment", "country", "rating", "pain_category",
         "specific_pain", "verbatim_quote", "sentiment_intensity",
         "geography", "language_preference", "listening_style", "unmet_need",
         "user_suggested_fix", "url",
@@ -80,4 +92,5 @@ def filter_options() -> dict:
         "listening_styles": _distinct("listening_style"),
         "language_preferences": _distinct("language_preference"),
         "sources": _distinct("source"),
+        "sentiments": _distinct("sentiment"),
     }

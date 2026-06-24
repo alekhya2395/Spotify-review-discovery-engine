@@ -6,19 +6,33 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Spotify-inspired palette
+        app: {
+          bg: "#000000",
+          panel: "#121212",
+          border: "#282828",
+          text: "#FFFFFF",
+          muted: "#A7A7A7",
+          green: "#1ED760",
+        },
+        sentiment: {
+          positive: "#1ED760",
+          negative: "#E91429",
+          neutral: "#71717A",
+          mixed: "#FACC15",
+        },
         spotify: {
-          green: "#1DB954",
-          black: "#0a0a0a",
-          gray: "#181818",
-          panel: "#1f1f1f",
-          border: "#2a2a2a",
-          text: "#e8e8e8",
-          muted: "#8a8a8a",
+          green: "#1ED760",
+          black: "#000000",
+          gray: "#121212",
+          panel: "#121212",
+          border: "#282828",
+          text: "#FFFFFF",
+          muted: "#A7A7A7",
         },
       },
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        display: ["Plus Jakarta Sans", "Inter", "system-ui", "sans-serif"],
       },
     },
   },

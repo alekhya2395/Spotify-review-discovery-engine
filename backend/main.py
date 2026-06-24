@@ -10,20 +10,25 @@ Then open:
 """
 
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-load_dotenv()
+_BACKEND = Path(__file__).resolve().parent
+_ROOT = _BACKEND.parent
+load_dotenv(_BACKEND / ".env")
+load_dotenv(_ROOT / ".env", override=True)
 
 from data_loader import data_summary  # noqa: E402
 from routers import chat, insights, report, stats, themes  # noqa: E402
 
+_DEFAULT_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
 ALLOWED_ORIGINS = [
     o.strip()
-    for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    for o in os.getenv("ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",")
     if o.strip()
 ]
 

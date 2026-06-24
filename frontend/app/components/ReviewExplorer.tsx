@@ -26,7 +26,7 @@ export function ReviewExplorer() {
     api
       .insights({
         page: pageNum,
-        page_size: 25,
+        page_size: 10,
         pain_category: filterValues.pain_category || undefined,
         geography: filterValues.geography || undefined,
         listening_style: filterValues.listening_style || undefined,
