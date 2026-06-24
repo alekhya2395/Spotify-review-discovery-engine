@@ -30,8 +30,8 @@ The bundled review data (`backend/data/insights_*.csv`, `themes_*.json`, `discov
 2. Pick this repository.
 3. After Railway creates the project, open the service’s **Settings** tab.
 4. Set **Root Directory** to `backend`.
-   - This tells Railway to build from `backend/` so it picks up `Procfile`, `requirements.txt`, `railway.json`, and `nixpacks.toml`.
-5. Railway will auto-detect the Python project. The included `nixpacks.toml` pins Python 3.12, `requirements.txt` installs deps, and `Procfile` / `railway.json` start uvicorn on `$PORT`.
+   - Railway builds from `backend/` using the included `Dockerfile` (more reliable than Nixpacks).
+5. In **Settings → Build**, confirm the builder is **Dockerfile** (auto-detected from `railway.toml`).
 
 ### 2.2 Set environment variables
 
