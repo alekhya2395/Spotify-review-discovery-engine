@@ -28,11 +28,13 @@ from rag import build_review_context  # noqa: E402
 from format_labels import (  # noqa: E402
     FOCUS_AREA_BY_TOPIC,
     PAIN_INSIGHT,
+    TOPIC_SUMMARY_CORE,
     detect_topic,
     format_pain,
-    format_segment,
     is_noisy_theme,
+    pain_allowed_for_topic,
     pain_lines,
+    score_review_relevance,
 )
 
 router = APIRouter()
@@ -73,6 +75,9 @@ You answer questions using ONLY the review context provided. You write in a clea
 CRITICAL RULES:
 - Your answer MUST be directly relevant to the specific question asked. Different questions must produce substantially different answers.
 - Read the QUESTION carefully first — every section must address what was asked, not a generic Spotify overview.
+- The Summary MUST directly answer the question in plain language (e.g. explain WHY or WHAT), not describe the dataset.
+- NEVER start the Summary with "Regarding", "Indexed reviews tie", "Reviews cluster around", or repeat the question verbatim.
+- NEVER include pain points unrelated to the question (e.g. do not mention pricing when asked about discovery).
 - NEVER include any numbers, counts, percentages, or statistics in your answer.
 - NEVER include verbatim user quotes or review excerpts.
 - NEVER mention review IDs, dataset sizes, or sample sizes.
@@ -82,7 +87,7 @@ CRITICAL RULES:
 EVERY answer MUST follow this EXACT structure with these EXACT 4 section headers (markdown bold):
 
 **Summary**
-A concise 2-3 sentence direct answer to the user's question. Describe the core finding or pattern that addresses their question.
+A concise 2-3 sentence direct answer to the user's question — state the finding as a product insight, not a meta description of reviews.
 
 **Key pain points**
 3-5 bullets. Each bullet describes a specific pain point RELEVANT TO THE QUESTION. Format: `- **<Category Name>**: <one sentence describing the pain in plain language>`. Only include pain points that directly relate to the question asked.
@@ -587,13 +592,6 @@ _STOPWORDS = frozenset({
 })
 
 
-def _question_focus_label(question: str) -> str:
-    q = question.strip().rstrip("?").strip()
-    if not q:
-        return "your question"
-    return q[0].upper() + q[1:] if len(q) > 1 else q.upper()
-
-
 def _question_tokens(question: str) -> list[str]:
     tokens = [t for t in re.split(r"\W+", question.lower()) if len(t) > 2]
     return [t for t in tokens if t not in _STOPWORDS]
@@ -684,87 +682,110 @@ def _actions_from_question(question: str, topic: str, pain_keys: list[str]) -> l
     return actions[:4]
 
 
+def _filter_reviews_for_question(
+    reviews: list[dict[str, Any]],
+    question: str,
+    topic: str,
+    *,
+    limit: int = 10,
+) -> list[dict[str, Any]]:
+    """Keep only reviews relevant to the question topic."""
+    scored: list[tuple[int, dict[str, Any]]] = []
+    for rev in reviews:
+        s = score_review_relevance(rev, question, topic)
+        if s > 0:
+            scored.append((s, rev))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    filtered = [r for _, r in scored[:limit]]
+    if filtered:
+        return filtered
+    # Relax: allow in-topic pains even with low token overlap
+    for rev in reviews:
+        key = str(rev.get("pain_category") or "").lower()
+        if pain_allowed_for_topic(key, topic):
+            filtered.append(rev)
+        if len(filtered) >= limit:
+            break
+    return filtered[:limit]
+
+
+def _build_direct_summary(question: str, topic: str, filtered_reviews: list[dict[str, Any]]) -> str:
+    """Write a summary that answers the question — not a dataset meta-description."""
+    q = question.lower()
+    if "struggle" in q and "discover" in q:
+        core = TOPIC_SUMMARY_CORE["discovery"]
+    elif any(w in q for w in ("frustrat", "complaint", "problem", "issue")) and "recommend" in q:
+        core = (
+            "The most common recommendation frustrations are repetitive suggestions, poor freshness "
+            "in algorithmic playlists, and difficulty correcting the algorithm after accidental listens."
+        )
+    elif "unmet need" in q or "what do users want" in q or "what users need" in q:
+        core = (
+            "The strongest unmet needs center on more control over recommendations, fresher discovery "
+            "pathways, and transparency in how the algorithm shapes the listening experience."
+        )
+    elif "segment" in q or "different users" in q or "user type" in q:
+        core = TOPIC_SUMMARY_CORE["segment"]
+    else:
+        core = TOPIC_SUMMARY_CORE.get(topic, TOPIC_SUMMARY_CORE["general"])
+
+    needs: list[str] = []
+    for rev in filtered_reviews[:5]:
+        need = str(rev.get("unmet_need") or "").strip()
+        if need and need.lower() not in {"none", "nan"} and need.lower() not in needs:
+            needs.append(need.lower().rstrip("."))
+
+    if needs:
+        if len(needs) == 1:
+            core += f" Review feedback especially highlights {needs[0]}."
+        else:
+            core += f" Users frequently ask for {needs[0]} and {needs[1]}."
+    return core
+
+
 def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
     """Build a question-specific 4-section answer from matched reviews and themes."""
     stats = payload.get("dataset_stats") or {}
     reviews = payload.get("matched_reviews") or []
     themes = payload.get("themes") or []
     topic = detect_topic(question)
-    focus = _question_focus_label(question)
 
-    pain_keys: list[str] = []
-    for rev in reviews[:12]:
-        key = str(rev.get("pain_category") or "").lower()
-        if key and key not in {"none", "nan"} and key not in pain_keys:
-            pain_keys.append(key)
-    if not pain_keys:
-        pain_keys = [k for k, _, _ in pain_lines(stats, question, limit=4, require_relevant=True)]
-    if not pain_keys:
-        pain_keys = [k for k, _, _ in pain_lines(stats, question, limit=4, require_relevant=False)]
-
-    if pain_keys:
-        labels = [format_pain(k) for k in pain_keys[:3]]
-        if len(labels) == 1:
-            label_text = labels[0]
-        elif len(labels) == 2:
-            label_text = f"{labels[0]} and {labels[1]}"
-        else:
-            label_text = f"{labels[0]}, {labels[1]}, and {labels[2]}"
-        lead = PAIN_INSIGHT.get(pain_keys[0], "")
-        summary = f"Regarding **{focus}**, indexed reviews tie this question to **{label_text}**."
-        if lead:
-            summary += f" {lead}"
-    else:
-        ranked = sorted(themes, key=lambda t: _theme_relevance(t, question), reverse=True)
-        clean = [t for t in ranked if not is_noisy_theme(str(t.get("theme_name") or ""))]
-        if clean:
-            t = clean[0]
-            name = str(t.get("theme_name") or "user feedback").strip()
-            one_line = str(t.get("summary") or "").strip()
-            summary = f"Regarding **{focus}**, reviews cluster around **{name}**."
-            if one_line:
-                summary += f" {one_line}"
-        else:
-            summary = (
-                f"Regarding **{focus}**, user feedback highlights friction across discovery, "
-                "recommendations, and product control that maps to this topic."
-            )
+    filtered = _filter_reviews_for_question(reviews, question, topic)
+    summary = _build_direct_summary(question, topic, filtered)
 
     pain_bullets: list[str] = []
     seen_pains: set[str] = set()
-    for rev in reviews:
+    for rev in filtered:
         if len(pain_bullets) >= 5:
             break
+        key = str(rev.get("pain_category") or "").lower()
+        if not pain_allowed_for_topic(key, topic):
+            continue
         label = format_pain(rev.get("pain_category"))
         if label in seen_pains or label == "General Feedback":
             continue
-        key = str(rev.get("pain_category") or "").lower()
         need = str(rev.get("unmet_need") or "").strip()
         if need and need.lower() not in {"none", "nan"}:
             pain_bullets.append(f"- **{label}**: Users want {need.lower().rstrip('.')}.")
         elif key in PAIN_INSIGHT:
             pain_bullets.append(f"- **{label}**: {PAIN_INSIGHT[key]}")
-        else:
-            pain_bullets.append(
-                f"- **{label}**: Review feedback describes friction in this area related to the question."
-            )
-        seen_pains.add(label)
-
-    for key, label, _ in pain_lines(stats, question, limit=6, require_relevant=True):
-        if label in seen_pains or len(pain_bullets) >= 5:
-            continue
-        insight = PAIN_INSIGHT.get(key, f"Users describe ongoing friction around {label.lower()}.")
-        pain_bullets.append(f"- **{label}**: {insight}")
         seen_pains.add(label)
 
     if len(pain_bullets) < 3:
-        for key, label, _ in pain_lines(stats, question, limit=5, require_relevant=False):
-            if label in seen_pains:
+        for key, label, _ in pain_lines(stats, question, limit=5, require_relevant=True):
+            if label in seen_pains or not pain_allowed_for_topic(key, topic):
                 continue
-            insight = PAIN_INSIGHT.get(key, f"Users describe ongoing friction around {label.lower()}.")
-            pain_bullets.append(f"- **{label}**: {insight}")
-            seen_pains.add(label)
+            insight = PAIN_INSIGHT.get(key)
+            if insight:
+                pain_bullets.append(f"- **{label}**: {insight}")
+                seen_pains.add(label)
             if len(pain_bullets) >= 5:
+                break
+
+    if len(pain_bullets) < 2:
+        for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["discovery"])[:3]:
+            pain_bullets.append(f"- **{topic.replace('_', ' ').title()}**: {line}")
+            if len(pain_bullets) >= 3:
                 break
 
     focus_bullets: list[str] = []
@@ -776,32 +797,39 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
         name = str(t.get("theme_name") or "").strip()
         if is_noisy_theme(name):
             continue
+        if _theme_relevance(t, question) < 3 and topic != "general":
+            continue
         want = str(t.get("what_users_want") or "").strip()
         if want:
-            bullet = f"- **{name}**: Prioritize improvements around {want.lower().rstrip('.')}."
+            bullet = f"- **{name}**: Prioritize {want.lower().rstrip('.')}."
             if bullet not in seen_focus:
                 focus_bullets.append(bullet)
                 seen_focus.add(bullet)
 
-    for rev in reviews:
+    for rev in filtered:
         if len(focus_bullets) >= 5:
             break
         need = str(rev.get("unmet_need") or "").strip()
         if need and need.lower() not in {"none", "nan"}:
             cat = format_pain(rev.get("pain_category"))
-            bullet = f"- **{cat}**: Close the gap on user requests such as {need.lower().rstrip('.')}."
+            bullet = f"- **{cat}**: Deliver on user requests such as {need.lower().rstrip('.')}."
             if bullet not in seen_focus:
                 focus_bullets.append(bullet)
                 seen_focus.add(bullet)
 
     for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]):
-        if len(focus_bullets) >= 5:
+        if len(focus_bullets) >= 4:
             break
         bullet = f"- **Product direction**: {line}"
         if bullet not in seen_focus:
             focus_bullets.append(bullet)
             seen_focus.add(bullet)
 
+    pain_keys = [
+        str(rev.get("pain_category") or "").lower()
+        for rev in filtered
+        if pain_allowed_for_topic(str(rev.get("pain_category") or "").lower(), topic)
+    ]
     actions = _actions_from_question(question, topic, pain_keys)
     parts = [
         f"**Summary**\n\n{summary}",
@@ -813,16 +841,45 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
 
 
 def _is_canned_fallback_answer(text: str) -> bool:
-    """Detect static template answers that ignore the specific question."""
+    """Detect static template or meta-descriptive answers that ignore the question."""
     markers = (
         "Analysis of Spotify user feedback reveals that the most significant areas of concern",
         "Indexed review feedback surfaces recurring themes",
+        "indexed reviews tie this question to",
+        "Reviews cluster around",
+        "Regarding **",
         "Users report ongoing friction related to technical",
         "Prioritize the pain areas most tied to the question asked",
         "Users struggle to discover new music primarily because the algorithm heavily favors",
-        "The most common frustrations with Spotify's recommendation system center around repetitiveness",
     )
-    return any(m in text for m in markers)
+    lower = text.lower()
+    return any(m.lower() in lower for m in markers)
+
+
+def _answer_has_off_topic_pains(question: str, answer: str) -> bool:
+    """Reject answers that mention pain areas unrelated to the question topic."""
+    topic = detect_topic(question)
+    sections = _split_into_sections(answer)
+    pain_body = (sections.get("Key pain points") or "").lower()
+    summary = (sections.get("Summary") or "").lower()
+    combined = pain_body + " " + summary
+
+    off_topic_markers: dict[str, tuple[str, ...]] = {
+        "discovery": (
+            "pricing & value", "premium pricing", "family plan", "student verification",
+            "churn signals", "ads & free tier",
+        ),
+        "repetition": ("pricing & value", "premium pricing", "ads & free tier"),
+        "pricing": (),
+        "ui": ("pricing & value", "ads & free tier"),
+        "performance": ("pricing & value",),
+        "social": ("pricing & value",),
+        "audio": ("pricing & value", "ads & free tier"),
+    }
+    for marker in off_topic_markers.get(topic, ()):
+        if marker in combined:
+            return True
+    return False
 
 
 def _ensure_four_sections(answer: str, question: str, payload: dict[str, Any]) -> str:
@@ -890,6 +947,8 @@ def _accept_groq_answer(raw: str, question: str) -> str | None:
     if len(normalized.strip()) < 80:
         return None
     if _is_canned_fallback_answer(normalized):
+        return None
+    if _answer_has_off_topic_pains(question, normalized):
         return None
     return normalized
 

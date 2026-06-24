@@ -42,7 +42,7 @@ PAIN_INSIGHT: dict[str, str] = {
 QUESTION_TOPICS: dict[str, tuple[str, ...]] = {
     "discovery": ("discover", "find", "new music", "fresh", "recommend", "explore", "autoplay",
                   "playlist", "discover weekly", "algorithm", "skip", "dismiss", "reject",
-                  "suggestion", "radio", "mix", "improve discovery"),
+                  "suggestion", "radio", "mix", "improve discovery", "struggle"),
     "pricing": ("price", "pricing", "cost", "premium", "subscription", "expensive", "cheap",
                 "family plan", "student", "free", "paywall", "ads", "ad ", "pay", "worth",
                 "money", "tier"),
@@ -116,6 +116,74 @@ FOCUS_AREA_BY_TOPIC: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Pain categories in scope per question topic — keeps answers focused on what was asked.
+TOPIC_PAIN_ALLOWLIST: dict[str, frozenset[str]] = {
+    "discovery": frozenset({
+        "discovery", "recommendation_quality", "algorithm_repetition",
+        "listening_behavior", "social_features",
+    }),
+    "repetition": frozenset({
+        "algorithm_repetition", "recommendation_quality", "listening_behavior", "discovery",
+    }),
+    "pricing": frozenset({"pricing", "pricing_complaints", "ads"}),
+    "ui": frozenset({"ui_ux", "ui_ux_issues"}),
+    "performance": frozenset({"performance", "audio_quality"}),
+    "social": frozenset({"social_features", "discovery"}),
+    "catalog": frozenset({"content_availability", "catalog_gaps"}),
+    "audio": frozenset({"audio_quality", "performance"}),
+    "segment": frozenset({
+        "listening_behavior", "discovery", "ads", "pricing",
+        "recommendation_quality", "algorithm_repetition",
+    }),
+}
+
+# Direct summary cores — answer the question, not describe the dataset.
+TOPIC_SUMMARY_CORE: dict[str, str] = {
+    "discovery": (
+        "Users struggle to discover new music because recommendations stay anchored to familiar "
+        "artists and playlists, exploration beyond algorithmic feeds like Discover Weekly is limited, "
+        "and listeners lack clear ways to steer toward genuinely unfamiliar artists and genres."
+    ),
+    "repetition": (
+        "Users repeatedly listen to the same content because the algorithm reinforces existing taste, "
+        "autoplay favors safe familiar tracks, and the product rarely intervenes when listening patterns "
+        "become monotonous."
+    ),
+    "pricing": (
+        "Users question Premium value when ads on the free tier feel excessive, plan policies create "
+        "enrollment friction, and the perceived benefit gap versus cost drives dissatisfaction."
+    ),
+    "ui": (
+        "Users find the interface hard to navigate when core actions require too many steps, library "
+        "organization breaks down at scale, and frequent redesigns disrupt learned workflows."
+    ),
+    "performance": (
+        "Users lose trust when playback crashes or stutters, library and search feel slow, and "
+        "wireless listening is unreliable across common devices."
+    ),
+    "social": (
+        "Users want richer social discovery but collaborative playlists, friend activity, and in-app "
+        "sharing feel minimal compared to the core listening experience."
+    ),
+    "catalog": (
+        "Users hit catalog friction when expected tracks or podcasts are missing, regional gaps are "
+        "opaque, and music versus spoken-word discovery are poorly separated."
+    ),
+    "audio": (
+        "Users report audio quality concerns on wireless playback, perceived bitrate limits on lower "
+        "tiers, and inconsistent sound across devices."
+    ),
+    "segment": (
+        "Different listener segments face distinct barriers — casual users need simpler entry points, "
+        "power listeners exhaust recommendations quickly, and free-tier users face ad-driven discovery "
+        "interruptions."
+    ),
+    "general": (
+        "User feedback points to recurring friction in how Spotify surfaces music, personalizes "
+        "recommendations, and gives listeners control over their experience."
+    ),
+}
+
 OFF_TOPIC_MARKERS = (
     "concert",
     "festival",
@@ -150,6 +218,10 @@ SPOTIFY_SIGNAL_WORDS = (
 def detect_topic(question: str) -> str:
     """Return the dominant pain topic for the question (or 'general')."""
     q = (question or "").lower()
+    if any(p in q for p in ("struggle", "difficult", "hard to", "trouble")) and "discover" in q:
+        return "discovery"
+    if any(p in q for p in ("repeat", "repetitive", "same content", "same songs", "same music")):
+        return "repetition"
     scored: list[tuple[int, str]] = []
     for topic, terms in QUESTION_TOPICS.items():
         hits = sum(1 for term in terms if term in q)
@@ -159,6 +231,47 @@ def detect_topic(question: str) -> str:
         return "general"
     scored.sort(reverse=True)
     return scored[0][1]
+
+
+def pain_allowed_for_topic(pain_key: str, topic: str) -> bool:
+    """True if this pain category should appear in an answer for the given topic."""
+    allowed = TOPIC_PAIN_ALLOWLIST.get(topic)
+    if not allowed:
+        return True
+    key = str(pain_key or "").lower()
+    if not key or key in {"none", "nan"}:
+        return False
+    return key in allowed
+
+
+def score_review_relevance(review: dict, question: str, topic: str) -> int:
+    """Score how relevant a matched review is to the question and topic."""
+    key = str(review.get("pain_category") or "").lower()
+    if not pain_allowed_for_topic(key, topic):
+        return -10
+
+    tokens = [
+        t for t in re.split(r"\W+", (question or "").lower())
+        if len(t) > 2 and t not in {"what", "when", "where", "which", "who", "why", "how", "the",
+                                    "and", "for", "with", "about", "from", "that", "this", "users",
+                                    "user", "spotify", "music", "does", "are", "most", "common"}
+    ]
+    blob = " ".join(
+        str(review.get(f) or "")
+        for f in ("unmet_need", "quote", "pain_category", "segment")
+    ).lower()
+
+    score = 0
+    for token in tokens:
+        if token in blob:
+            score += 3
+    if key in TOPIC_PAIN_ALLOWLIST.get(topic, frozenset()):
+        score += 4
+    topic_terms = QUESTION_TOPICS.get(topic, ())
+    for term in topic_terms:
+        if term in blob:
+            score += 2
+    return score
 
 
 def format_pain(value: str) -> str:

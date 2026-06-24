@@ -80,6 +80,32 @@ def _text_search(df: pd.DataFrame, question: str, k: int = 20) -> pd.DataFrame:
         for token in tokens:
             scores += series.str.contains(token, regex=False).astype(int)
 
+    # Boost rows that match the question's dominant topic
+    q = needle
+    if any(w in q for w in ("struggle", "difficult", "hard")) and "discover" in q:
+        if "pain_category" in df.columns:
+            scores += df["pain_category"].fillna("").astype(str).str.lower().isin(
+                {"discovery", "recommendation_quality", "algorithm_repetition"}
+            ).astype(int) * 4
+        if "is_discovery_related" in df.columns:
+            scores += df["is_discovery_related"].fillna(False).astype(int) * 2
+    elif any(w in q for w in ("price", "premium", "subscription", "ads", "free tier")):
+        if "pain_category" in df.columns:
+            scores += df["pain_category"].fillna("").astype(str).str.lower().isin(
+                {"pricing", "pricing_complaints", "ads"}
+            ).astype(int) * 4
+    elif any(w in q for w in ("bluetooth", "audio", "sound", "quality")):
+        if "pain_category" in df.columns:
+            scores += df["pain_category"].fillna("").astype(str).str.lower().eq("audio_quality").astype(int) * 4
+    elif any(w in q for w in ("podcast", "audiobook")):
+        if "pain_category" in df.columns:
+            scores += df["pain_category"].fillna("").astype(str).str.lower().isin(
+                {"content_availability", "catalog_gaps"}
+            ).astype(int) * 3
+        for col in cols:
+            series = df[col].fillna("").astype(str).str.lower()
+            scores += series.str.contains("podcast", regex=False).astype(int) * 3
+
     ranked = df.loc[scores > 0].copy()
     if ranked.empty:
         if "is_discovery_related" in df.columns:
