@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant")
 GROQ_FALLBACK_MODEL = os.getenv("GROQ_CHAT_FALLBACK_MODEL", "llama-3.1-8b-instant")
-GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "20"))
+GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "45"))
 
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_CHARS = 600
@@ -1175,20 +1175,49 @@ def _answer_matches_intent(question: str, answer: str) -> bool:
     return True
 
 
-def _accept_groq_answer(raw: str, question: str) -> str | None:
+def _accept_groq_answer(raw: str, question: str, payload: dict[str, Any]) -> str | None:
+    """Accept Groq output when structurally valid — same bar as local dev."""
     cleaned = _strip_numbers_and_quotes(raw)
     normalized = _enforce_section_order(cleaned)
     if len(normalized.strip()) < 80:
         return None
     if _is_canned_fallback_answer(normalized):
         return None
-    if _answer_has_off_topic_pains(question, normalized):
-        return None
-    if not _answer_matches_intent(question, normalized):
-        return None
-    if not _sections_are_distinct(normalized):
+    if not _has_required_sections(normalized):
+        normalized = _ensure_four_sections(normalized, question, payload)
+    if not _has_required_sections(normalized):
         return None
     return normalized
+
+
+def _try_groq_answer(
+    question: str,
+    payload: dict[str, Any],
+    grounding: str,
+    history: list[dict],
+) -> str | None:
+    """Try Groq with full then compact context — returns answer or None."""
+    if not GROQ_API_KEY:
+        logger.warning("GROQ_API_KEY not set — chat will use review-grounded fallback")
+        return None
+
+    trimmed = grounding[:6000] if len(grounding) > 6000 else grounding
+    attempts = [
+        ("full", trimmed, False),
+        ("compact", _compact_grounding_payload(payload), True),
+    ]
+    for label, ctx, compact in attempts:
+        messages = _build_groq_messages(question, ctx, history, compact=compact)
+        raw = _try_groq(messages)
+        if not raw:
+            logger.info("Groq %s attempt returned nothing for %r", label, question[:60])
+            continue
+        candidate = _accept_groq_answer(raw, question, payload)
+        if candidate:
+            logger.info("chat answer from Groq (%s) for %r", label, question[:60])
+            return candidate
+        logger.info("Groq %s answer rejected (structure) for %r", label, question[:60])
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -1269,18 +1298,10 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     history = _trim_history(req.history, req.question)
 
-    # Review-grounded answer is always the reliable baseline.
-    answer = _build_data_grounded_answer(req.question, payload)
-
-    trimmed_grounding = grounding[:8000] if len(grounding) > 8000 else grounding
-    messages = _build_groq_messages(req.question, trimmed_grounding, history)
-    raw = _try_groq(messages)
-    if raw:
-        candidate = _accept_groq_answer(raw, req.question)
-        if candidate and _has_required_sections(candidate) and _sections_are_distinct(candidate):
-            answer = candidate
-
-    if not _sections_are_distinct(answer):
+    # Groq first (matches local dev). Review-grounded fallback only when Groq unavailable.
+    answer = _try_groq_answer(req.question, payload, grounding, history)
+    if not answer:
+        logger.info("chat answer from review-grounded fallback for %r", req.question[:80])
         answer = _build_data_grounded_answer(req.question, payload)
 
     answer = _strip_numbers_and_quotes(answer)

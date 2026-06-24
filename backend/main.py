@@ -60,7 +60,10 @@ def root() -> JSONResponse:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok", "data": data_summary()}
+    summary = data_summary()
+    summary["groq_configured"] = bool(os.getenv("GROQ_API_KEY", "").strip())
+    summary["groq_model"] = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant")
+    return {"status": "ok", "data": summary}
 
 
 app.include_router(stats.router, prefix="/api", tags=["stats"])
