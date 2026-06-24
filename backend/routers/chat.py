@@ -28,13 +28,15 @@ from rag import build_review_context  # noqa: E402
 from format_labels import (  # noqa: E402
     FOCUS_AREA_BY_TOPIC,
     PAIN_INSIGHT,
-    TOPIC_SUMMARY_CORE,
+    actions_for_intent,
+    detect_question_intent,
     detect_topic,
     format_pain,
     is_noisy_theme,
     pain_allowed_for_topic,
     pain_lines,
     score_review_relevance,
+    summary_for_intent,
 )
 
 router = APIRouter()
@@ -76,6 +78,7 @@ CRITICAL RULES:
 - Your answer MUST be directly relevant to the specific question asked. Different questions must produce substantially different answers.
 - Read the QUESTION carefully first — every section must address what was asked, not a generic Spotify overview.
 - The Summary MUST directly answer the question in plain language (e.g. explain WHY or WHAT), not describe the dataset.
+- Match the question TYPE: "why/cause/struggle" questions explain root causes; "opportunity/improve" questions highlight product bets and growth areas; "frustration/pain" questions list complaints.
 - NEVER start the Summary with "Regarding", "Indexed reviews tie", "Reviews cluster around", or repeat the question verbatim.
 - NEVER include pain points unrelated to the question (e.g. do not mention pricing when asked about discovery).
 - NEVER include any numbers, counts, percentages, or statistics in your answer.
@@ -612,14 +615,20 @@ def _theme_relevance(theme: dict[str, Any], question: str) -> int:
     return score
 
 
-def _actions_from_question(question: str, topic: str, pain_keys: list[str]) -> list[str]:
+def _actions_from_question(
+    question: str,
+    topic: str,
+    pain_keys: list[str],
+    intent: str,
+) -> list[str]:
     q = question.lower()
-    actions: list[str] = []
+    actions: list[str] = list(actions_for_intent(intent, topic))
+
+    if intent == "opportunity":
+        return actions[:4] if actions else list(FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]))[:4]
 
     if any(w in q for w in ("skip", "dismiss", "ignore", "reject", "hide")):
         actions.append("Strengthen negative feedback signals when users skip or dismiss recommendations.")
-    if any(w in q for w in ("improve", "better", "fix", "enhance", "solve")):
-        actions.append("Translate the top complaints behind this question into a focused product experiment.")
     if any(w in q for w in ("leave", "churn", "cancel", "quit", "switch")):
         actions.append("Address retention drivers behind exit feedback before adding new surface area.")
     if any(w in q for w in ("podcast", "audiobook", "spoken")):
@@ -672,14 +681,30 @@ def _actions_from_question(question: str, topic: str, pain_keys: list[str]) -> l
         if act not in actions:
             actions.append(act)
 
-    for key in pain_keys[:2]:
-        label = format_pain(key)
-        actions.append(f"Run a targeted review of {label.lower()} complaints tied to this question.")
-
     if not actions:
         actions = list(FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]))[:3]
 
     return actions[:4]
+
+
+def _pain_bullet(
+    label: str,
+    key: str,
+    need: str,
+    intent: str,
+) -> str:
+    """Format a pain bullet matched to question intent."""
+    if need and need.lower() not in {"none", "nan"}:
+        need_clean = need.lower().rstrip(".")
+        if intent == "opportunity":
+            return f"- **{label}**: Closing the gap on {need_clean} is a concrete discovery opportunity."
+        return f"- **{label}**: Users want {need_clean}."
+    insight = PAIN_INSIGHT.get(key)
+    if intent == "opportunity" and insight:
+        return f"- **{label}**: {insight.rstrip('.')} — a clear area to invest in."
+    if insight:
+        return f"- **{label}**: {insight}"
+    return f"- **{label}**: Review feedback describes friction in this area related to the question."
 
 
 def _filter_reviews_for_question(
@@ -709,25 +734,14 @@ def _filter_reviews_for_question(
     return filtered[:limit]
 
 
-def _build_direct_summary(question: str, topic: str, filtered_reviews: list[dict[str, Any]]) -> str:
+def _build_direct_summary(
+    question: str,
+    topic: str,
+    intent: str,
+    filtered_reviews: list[dict[str, Any]],
+) -> str:
     """Write a summary that answers the question — not a dataset meta-description."""
-    q = question.lower()
-    if "struggle" in q and "discover" in q:
-        core = TOPIC_SUMMARY_CORE["discovery"]
-    elif any(w in q for w in ("frustrat", "complaint", "problem", "issue")) and "recommend" in q:
-        core = (
-            "The most common recommendation frustrations are repetitive suggestions, poor freshness "
-            "in algorithmic playlists, and difficulty correcting the algorithm after accidental listens."
-        )
-    elif "unmet need" in q or "what do users want" in q or "what users need" in q:
-        core = (
-            "The strongest unmet needs center on more control over recommendations, fresher discovery "
-            "pathways, and transparency in how the algorithm shapes the listening experience."
-        )
-    elif "segment" in q or "different users" in q or "user type" in q:
-        core = TOPIC_SUMMARY_CORE["segment"]
-    else:
-        core = TOPIC_SUMMARY_CORE.get(topic, TOPIC_SUMMARY_CORE["general"])
+    core = summary_for_intent(intent, topic)
 
     needs: list[str] = []
     for rev in filtered_reviews[:5]:
@@ -736,10 +750,21 @@ def _build_direct_summary(question: str, topic: str, filtered_reviews: list[dict
             needs.append(need.lower().rstrip("."))
 
     if needs:
-        if len(needs) == 1:
-            core += f" Review feedback especially highlights {needs[0]}."
+        if intent == "opportunity":
+            if len(needs) == 1:
+                core += f" Review feedback points to a strong bet around {needs[0]}."
+            else:
+                core += f" High-potential bets include {needs[0]} and {needs[1]}."
+        elif intent == "why_cause":
+            if len(needs) == 1:
+                core += f" A key driver in reviews is unmet demand for {needs[0]}."
+            else:
+                core += f" Contributing factors include unmet demand for {needs[0]} and {needs[1]}."
         else:
-            core += f" Users frequently ask for {needs[0]} and {needs[1]}."
+            if len(needs) == 1:
+                core += f" Review feedback especially highlights {needs[0]}."
+            else:
+                core += f" Users frequently mention {needs[0]} and {needs[1]}."
     return core
 
 
@@ -749,9 +774,10 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
     reviews = payload.get("matched_reviews") or []
     themes = payload.get("themes") or []
     topic = detect_topic(question)
+    intent = detect_question_intent(question)
 
     filtered = _filter_reviews_for_question(reviews, question, topic)
-    summary = _build_direct_summary(question, topic, filtered)
+    summary = _build_direct_summary(question, topic, intent, filtered)
 
     pain_bullets: list[str] = []
     seen_pains: set[str] = set()
@@ -765,43 +791,43 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
         if label in seen_pains or label == "General Feedback":
             continue
         need = str(rev.get("unmet_need") or "").strip()
-        if need and need.lower() not in {"none", "nan"}:
-            pain_bullets.append(f"- **{label}**: Users want {need.lower().rstrip('.')}.")
-        elif key in PAIN_INSIGHT:
-            pain_bullets.append(f"- **{label}**: {PAIN_INSIGHT[key]}")
+        pain_bullets.append(_pain_bullet(label, key, need, intent))
         seen_pains.add(label)
 
     if len(pain_bullets) < 3:
         for key, label, _ in pain_lines(stats, question, limit=5, require_relevant=True):
             if label in seen_pains or not pain_allowed_for_topic(key, topic):
                 continue
-            insight = PAIN_INSIGHT.get(key)
-            if insight:
-                pain_bullets.append(f"- **{label}**: {insight}")
-                seen_pains.add(label)
+            pain_bullets.append(_pain_bullet(label, key, "", intent))
+            seen_pains.add(label)
             if len(pain_bullets) >= 5:
-                break
-
-    if len(pain_bullets) < 2:
-        for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["discovery"])[:3]:
-            pain_bullets.append(f"- **{topic.replace('_', ' ').title()}**: {line}")
-            if len(pain_bullets) >= 3:
                 break
 
     focus_bullets: list[str] = []
     seen_focus: set[str] = set()
+
+    if intent == "opportunity":
+        for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["discovery"]):
+            if len(focus_bullets) >= 4:
+                break
+            bullet = f"- **Opportunity**: {line}"
+            if bullet not in seen_focus:
+                focus_bullets.append(bullet)
+                seen_focus.add(bullet)
+
     ranked_themes = sorted(themes, key=lambda t: _theme_relevance(t, question), reverse=True)
     for t in ranked_themes:
-        if len(focus_bullets) >= 4:
+        if len(focus_bullets) >= 5:
             break
         name = str(t.get("theme_name") or "").strip()
         if is_noisy_theme(name):
             continue
-        if _theme_relevance(t, question) < 3 and topic != "general":
+        if _theme_relevance(t, question) < 3 and topic != "general" and intent != "opportunity":
             continue
         want = str(t.get("what_users_want") or "").strip()
         if want:
-            bullet = f"- **{name}**: Prioritize {want.lower().rstrip('.')}."
+            prefix = "Opportunity" if intent == "opportunity" else name
+            bullet = f"- **{prefix}**: {want.lower().rstrip('.').capitalize()}."
             if bullet not in seen_focus:
                 focus_bullets.append(bullet)
                 seen_focus.add(bullet)
@@ -812,25 +838,24 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
         need = str(rev.get("unmet_need") or "").strip()
         if need and need.lower() not in {"none", "nan"}:
             cat = format_pain(rev.get("pain_category"))
-            bullet = f"- **{cat}**: Deliver on user requests such as {need.lower().rstrip('.')}."
+            if intent == "opportunity":
+                bullet = f"- **{cat}**: Product opportunity to deliver {need.lower().rstrip('.')}."
+            else:
+                bullet = f"- **{cat}**: Deliver on user requests such as {need.lower().rstrip('.')}."
             if bullet not in seen_focus:
                 focus_bullets.append(bullet)
                 seen_focus.add(bullet)
 
-    for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]):
-        if len(focus_bullets) >= 4:
-            break
-        bullet = f"- **Product direction**: {line}"
-        if bullet not in seen_focus:
-            focus_bullets.append(bullet)
-            seen_focus.add(bullet)
+    if len(focus_bullets) < 3:
+        for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]):
+            if len(focus_bullets) >= 4:
+                break
+            bullet = f"- **Product direction**: {line}"
+            if bullet not in seen_focus:
+                focus_bullets.append(bullet)
+                seen_focus.add(bullet)
 
-    pain_keys = [
-        str(rev.get("pain_category") or "").lower()
-        for rev in filtered
-        if pain_allowed_for_topic(str(rev.get("pain_category") or "").lower(), topic)
-    ]
-    actions = _actions_from_question(question, topic, pain_keys)
+    actions = _actions_from_question(question, topic, [], intent)
     parts = [
         f"**Summary**\n\n{summary}",
         "**Key pain points**\n\n" + "\n".join(pain_bullets[:5]),
@@ -927,18 +952,55 @@ def _build_groq_messages(
     compact: bool = False,
 ) -> list[dict]:
     prefix = "COMPACT CONTEXT — still answer the exact question with all 4 sections.\n\n" if compact else ""
+    intent = detect_question_intent(question)
+    intent_note = (
+        f"QUESTION TYPE: {intent.upper()} — "
+        + (
+            "explain root causes and barriers."
+            if intent == "why_cause"
+            else "highlight product opportunities and improvement bets."
+            if intent == "opportunity"
+            else "answer the specific question directly."
+        )
+        + "\n\n"
+    )
     messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.extend(history)
     messages.append({
         "role": "user",
         "content": (
             f"QUESTION (answer this exactly — do not give a generic overview):\n{question}\n\n"
+            f"{intent_note}"
             "Use the review context below. Do NOT cite numbers, counts, or verbatim quotes. "
             "Follow the required 4-section structure exactly.\n\n"
             f"{prefix}CONTEXT:\n{grounding}"
         ),
     })
     return messages
+
+
+def _answer_matches_intent(question: str, answer: str) -> bool:
+    """Reject Groq answers that use the wrong framing for the question type."""
+    intent = detect_question_intent(question)
+    summary = (_split_into_sections(answer).get("Summary") or "").lower()
+    if intent == "opportunity":
+        wrong = (
+            "users struggle to discover",
+            "struggle to discover new music because",
+            "recommendations stay anchored to familiar",
+        )
+        if any(p in summary for p in wrong):
+            return False
+    if intent == "why_cause":
+        wrong = (
+            "biggest opportunities to improve",
+            "the biggest opportunities",
+            "high-potential bets include",
+            "product opportunity to deliver",
+        )
+        if any(p in summary for p in wrong):
+            return False
+    return True
 
 
 def _accept_groq_answer(raw: str, question: str) -> str | None:
@@ -949,6 +1011,8 @@ def _accept_groq_answer(raw: str, question: str) -> str | None:
     if _is_canned_fallback_answer(normalized):
         return None
     if _answer_has_off_topic_pains(question, normalized):
+        return None
+    if not _answer_matches_intent(question, normalized):
         return None
     return normalized
 

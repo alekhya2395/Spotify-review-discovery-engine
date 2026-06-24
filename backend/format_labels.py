@@ -184,6 +184,93 @@ TOPIC_SUMMARY_CORE: dict[str, str] = {
     ),
 }
 
+# Summaries keyed by question intent + topic — same topic, different questions get different answers.
+INTENT_TOPIC_SUMMARY: dict[str, dict[str, str]] = {
+    "opportunity": {
+        "discovery": (
+            "The biggest opportunities to improve music discovery lie in building dedicated "
+            "exploration surfaces outside the algorithmic taste bubble, giving users explicit "
+            "control over recommendation novelty, and adding social or curator-led pathways "
+            "that surface unfamiliar artists without relying solely on listening history."
+        ),
+        "repetition": (
+            "The strongest opportunities to reduce repetitive listening are loop-detection "
+            "interventions, autoplay designs that gradually inject novelty, and recommendation "
+            "objectives that balance comfort with deliberate exploration."
+        ),
+        "recommendation": (
+            "Top opportunities to improve recommendations include freshness constraints, "
+            "context-aware taste modeling, and visible feedback controls that let users "
+            "steer the algorithm without resetting their profile."
+        ),
+        "general": (
+            "The largest product opportunities surfaced in reviews center on fresher discovery "
+            "pathways, smarter recommendation control, and reducing friction between hearing "
+            "something new and saving or exploring it further."
+        ),
+    },
+    "why_cause": {
+        "discovery": TOPIC_SUMMARY_CORE["discovery"],
+        "repetition": TOPIC_SUMMARY_CORE["repetition"],
+        "pricing": TOPIC_SUMMARY_CORE["pricing"],
+        "ui": TOPIC_SUMMARY_CORE["ui"],
+        "performance": TOPIC_SUMMARY_CORE["performance"],
+        "social": TOPIC_SUMMARY_CORE["social"],
+        "catalog": TOPIC_SUMMARY_CORE["catalog"],
+        "audio": TOPIC_SUMMARY_CORE["audio"],
+        "segment": TOPIC_SUMMARY_CORE["segment"],
+        "general": TOPIC_SUMMARY_CORE["general"],
+    },
+    "pain_list": {
+        "discovery": (
+            "The most cited discovery pain points are stale algorithmic feeds, limited pathways "
+            "beyond Discover Weekly, and difficulty breaking out of familiar artist loops."
+        ),
+        "repetition": (
+            "Users report repetitive listening driven by algorithmic reinforcement, safe autoplay "
+            "choices, and a lack of prompts to explore when patterns become monotonous."
+        ),
+        "general": TOPIC_SUMMARY_CORE["general"],
+    },
+    "unmet_needs": {
+        "discovery": (
+            "Users consistently ask for more control over how recommendations evolve, dedicated "
+            "spaces to explore unfamiliar music, and clearer ways to correct the algorithm."
+        ),
+        "general": (
+            "The strongest unmet needs center on personalization control, fresher discovery "
+            "pathways, and transparency in how the algorithm shapes the listening experience."
+        ),
+    },
+}
+
+INTENT_TOPIC_ACTIONS: dict[str, dict[str, tuple[str, ...]]] = {
+    "opportunity": {
+        "discovery": (
+            "Launch a dedicated Explore tab for music outside the user's established taste profile.",
+            "Ship discovery-intensity controls so users can dial up novelty in algorithmic playlists.",
+            "Pilot curator- and friend-driven discovery feeds alongside algorithmic radio.",
+            "Test cross-genre autoplay bridges that break echo-chamber listening loops.",
+        ),
+        "repetition": (
+            "Build loop-detection nudges that suggest fresh content after repetitive patterns.",
+            "Redesign autoplay to mix familiar tracks with gradually increasing novelty.",
+            "Add a visible listening-diversity indicator that encourages exploration.",
+        ),
+        "general": (
+            "Prioritize the highest-impact discovery bets from review themes in a focused roadmap.",
+            "Run rapid experiments on exploration surfaces before broad algorithm changes.",
+        ),
+    },
+    "why_cause": {
+        "discovery": (
+            "Map the top discovery drop-off points from search to save and reduce friction.",
+            "Audit Discover Weekly and autoplay for over-reliance on familiar artists.",
+            "Add explicit novelty controls so users can escape taste echo chambers.",
+        ),
+    },
+}
+
 OFF_TOPIC_MARKERS = (
     "concert",
     "festival",
@@ -218,10 +305,12 @@ SPOTIFY_SIGNAL_WORDS = (
 def detect_topic(question: str) -> str:
     """Return the dominant pain topic for the question (or 'general')."""
     q = (question or "").lower()
-    if any(p in q for p in ("struggle", "difficult", "hard to", "trouble")) and "discover" in q:
-        return "discovery"
     if any(p in q for p in ("repeat", "repetitive", "same content", "same songs", "same music")):
         return "repetition"
+    if any(p in q for p in ("struggle", "difficult", "hard to", "trouble")) and "discover" in q:
+        return "discovery"
+    if any(p in q for p in ("frustrat", "complaint")) and "recommend" in q:
+        return "recommendation"
     scored: list[tuple[int, str]] = []
     for topic, terms in QUESTION_TOPICS.items():
         hits = sum(1 for term in terms if term in q)
@@ -230,7 +319,50 @@ def detect_topic(question: str) -> str:
     if not scored:
         return "general"
     scored.sort(reverse=True)
-    return scored[0][1]
+    topic = scored[0][1]
+    if topic == "repetition":
+        return "repetition"
+    return topic
+
+
+def detect_question_intent(question: str) -> str:
+    """Classify what kind of answer the question expects (why, opportunity, etc.)."""
+    q = (question or "").lower().strip()
+    if any(p in q for p in ("opportunit", "opportunities", "product bet", "growth lever", "invest in")):
+        return "opportunity"
+    if any(p in q for p in ("improve", "enhance", "strengthen", "boost", "better")) and not q.startswith("why"):
+        return "opportunity"
+    if q.startswith("why") or "why do" in q or "why are" in q or "what causes" in q or "what cause" in q:
+        return "why_cause"
+    if any(p in q for p in ("struggle", "difficult", "hard to", "barrier", "prevent", "fail to")):
+        return "why_cause"
+    if any(p in q for p in ("frustrat", "complaint", " annoy", "problem", "issue", "biggest pain", "top issue")):
+        return "pain_list"
+    if any(p in q for p in ("unmet need", "what do users want", "what users need", "users ask for", "missing")):
+        return "unmet_needs"
+    if any(p in q for p in ("segment", "which users", "user type", "different users", "who experiences")):
+        return "segment"
+    if q.startswith("how"):
+        return "how"
+    return "general"
+
+
+def summary_for_intent(intent: str, topic: str) -> str:
+    """Return intent-specific summary core for a topic."""
+    by_intent = INTENT_TOPIC_SUMMARY.get(intent) or {}
+    if topic in by_intent:
+        return by_intent[topic]
+    if topic == "recommendation" and "discovery" in by_intent:
+        return by_intent["discovery"]
+    return by_intent.get("general") or TOPIC_SUMMARY_CORE.get(topic) or TOPIC_SUMMARY_CORE["general"]
+
+
+def actions_for_intent(intent: str, topic: str) -> tuple[str, ...]:
+    """Return intent-specific recommended actions for a topic."""
+    by_intent = INTENT_TOPIC_ACTIONS.get(intent) or {}
+    if topic in by_intent:
+        return by_intent[topic]
+    return by_intent.get("general", ())
 
 
 def pain_allowed_for_topic(pain_key: str, topic: str) -> bool:
