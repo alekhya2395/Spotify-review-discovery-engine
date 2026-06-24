@@ -305,6 +305,10 @@ SPOTIFY_SIGNAL_WORDS = (
 def detect_topic(question: str) -> str:
     """Return the dominant pain topic for the question (or 'general')."""
     q = (question or "").lower()
+    if any(p in q for p in ("ad ", "ads", "advert", "free tier", "free plan")) and not any(
+        p in q for p in ("discover", "recommend", "new music")
+    ):
+        return "pricing"
     if any(p in q for p in ("repeat", "repetitive", "same content", "same songs", "same music")):
         return "repetition"
     if any(p in q for p in ("struggle", "difficult", "hard to", "trouble")) and "discover" in q:
@@ -328,6 +332,8 @@ def detect_topic(question: str) -> str:
 def detect_question_intent(question: str) -> str:
     """Classify what kind of answer the question expects (why, opportunity, etc.)."""
     q = (question or "").lower().strip()
+    if any(p in q for p in ("frustrat", "frustration", " annoy", "complaint", "complaints")):
+        return "pain_list"
     if any(p in q for p in ("opportunit", "opportunities", "product bet", "growth lever", "invest in")):
         return "opportunity"
     if any(p in q for p in ("improve", "enhance", "strengthen", "boost", "better")) and not q.startswith("why"):

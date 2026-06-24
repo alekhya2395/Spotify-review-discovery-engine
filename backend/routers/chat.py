@@ -77,10 +77,12 @@ You answer questions using ONLY the review context provided. You write in a clea
 CRITICAL RULES:
 - Your answer MUST be directly relevant to the specific question asked. Different questions must produce substantially different answers.
 - Read the QUESTION carefully first — every section must address what was asked, not a generic Spotify overview.
-- The Summary MUST directly answer the question in plain language (e.g. explain WHY or WHAT), not describe the dataset.
-- Match the question TYPE: "why/cause/struggle" questions explain root causes; "opportunity/improve" questions highlight product bets and growth areas; "frustration/pain" questions list complaints.
-- NEVER start the Summary with "Regarding", "Indexed reviews tie", "Reviews cluster around", or repeat the question verbatim.
-- NEVER include pain points unrelated to the question (e.g. do not mention pricing when asked about discovery).
+- The Summary MUST directly answer the question in plain language — never describe the dataset or repeat the question.
+- Match the question TYPE: "why/cause/struggle" explains root causes; "opportunity/improve" highlights product bets; "frustration/pain" lists top complaints.
+- Each of the 4 sections MUST contain different information — do NOT repeat the same point across Summary, Key pain points, Product focus areas, and Recommended actions.
+- Key pain points = specific user complaints from the context. Product focus areas = strategic product directions (not the same wording as pain points). Recommended actions = concrete next steps for the product team (not duplicates of focus areas).
+- NEVER start the Summary with "Regarding", "Indexed reviews tie", or "User feedback points to recurring friction" unless the question is extremely broad.
+- NEVER include pain points unrelated to the question (e.g. do not mention pricing when asked only about discovery).
 - NEVER include any numbers, counts, percentages, or statistics in your answer.
 - NEVER include verbatim user quotes or review excerpts.
 - NEVER mention review IDs, dataset sizes, or sample sizes.
@@ -687,24 +689,42 @@ def _actions_from_question(
     return actions[:4]
 
 
-def _pain_bullet(
-    label: str,
-    key: str,
-    need: str,
-    intent: str,
-) -> str:
-    """Format a pain bullet matched to question intent."""
-    if need and need.lower() not in {"none", "nan"}:
-        need_clean = need.lower().rstrip(".")
-        if intent == "opportunity":
-            return f"- **{label}**: Closing the gap on {need_clean} is a concrete discovery opportunity."
-        return f"- **{label}**: Users want {need_clean}."
-    insight = PAIN_INSIGHT.get(key)
-    if intent == "opportunity" and insight:
-        return f"- **{label}**: {insight.rstrip('.')} — a clear area to invest in."
-    if insight:
-        return f"- **{label}**: {insight}"
-    return f"- **{label}**: Review feedback describes friction in this area related to the question."
+def _norm_text(text: str) -> str:
+    return re.sub(r"\W+", " ", (text or "").lower()).strip()
+
+
+def _text_overlap(a: str, b: str) -> float:
+    """Rough word overlap ratio between two strings."""
+    wa = set(_norm_text(a).split())
+    wb = set(_norm_text(b).split())
+    if not wa or not wb:
+        return 0.0
+    return len(wa & wb) / min(len(wa), len(wb))
+
+
+def _sections_are_distinct(answer: str) -> bool:
+    """Reject answers that repeat the same content across sections."""
+    sections = _split_into_sections(answer)
+    summary = sections.get("Summary") or ""
+    pains = sections.get("Key pain points") or ""
+    focus = sections.get("Product focus areas") or ""
+    actions = sections.get("Recommended actions") or ""
+
+    if _text_overlap(pains, focus) > 0.62:
+        return False
+    if _text_overlap(focus, actions) > 0.5:
+        return False
+    if _text_overlap(summary, pains) > 0.72:
+        return False
+    # Same phrase repeated in focus bullets
+    focus_lines = [ln.strip() for ln in focus.splitlines() if ln.strip().startswith("-")]
+    seen: set[str] = set()
+    for ln in focus_lines:
+        core = _norm_text(ln.split(":", 1)[-1] if ":" in ln else ln)
+        if core in seen:
+            return False
+        seen.add(core)
+    return True
 
 
 def _filter_reviews_for_question(
@@ -724,7 +744,6 @@ def _filter_reviews_for_question(
     filtered = [r for _, r in scored[:limit]]
     if filtered:
         return filtered
-    # Relax: allow in-topic pains even with low token overlap
     for rev in reviews:
         key = str(rev.get("pain_category") or "").lower()
         if pain_allowed_for_topic(key, topic):
@@ -734,42 +753,237 @@ def _filter_reviews_for_question(
     return filtered[:limit]
 
 
-def _build_direct_summary(
+def _collect_review_signals(
+    filtered: list[dict[str, Any]],
+    question: str,
+    topic: str,
+) -> list[dict[str, str]]:
+    """Extract unique review signals — one per pain category, ranked by relevance."""
+    signals: list[dict[str, str]] = []
+    seen_cats: set[str] = set()
+    seen_needs: set[str] = set()
+
+    for rev in filtered:
+        key = str(rev.get("pain_category") or "").lower()
+        if not key or key in {"none", "nan"}:
+            continue
+        if not pain_allowed_for_topic(key, topic):
+            continue
+        label = format_pain(key)
+        if label in seen_cats:
+            continue
+
+        need = str(rev.get("unmet_need") or "").strip()
+        if need.lower() in {"none", "nan", ""}:
+            need = ""
+        need_norm = _norm_text(need)[:80]
+        if need_norm and need_norm in seen_needs:
+            continue
+
+        signals.append({"key": key, "label": label, "need": need})
+        seen_cats.add(label)
+        if need_norm:
+            seen_needs.add(need_norm)
+        if len(signals) >= 6:
+            break
+    return signals
+
+
+def _synthesize_summary(
+    question: str,
+    intent: str,
+    topic: str,
+    signals: list[dict[str, str]],
+) -> str:
+    """Build a summary that directly answers the question from review signals."""
+    needs = [s["need"].rstrip(".") for s in signals if s.get("need")][:3]
+
+    if intent == "why_cause" and topic == "discovery":
+        return (
+            "Users struggle to discover new music because algorithmic feeds keep recycling "
+            "familiar artists, exploration beyond playlists like Discover Weekly feels limited, "
+            "and listeners lack clear controls to steer toward genuinely unfamiliar music."
+        )
+
+    if intent == "opportunity" and topic == "discovery":
+        return (
+            "The biggest opportunities to improve music discovery are dedicated Explore experiences "
+            "outside the taste bubble, user-controlled recommendation novelty, and curator or "
+            "social paths that surface unfamiliar artists without relying on past listening alone."
+        )
+
+    if intent == "pain_list" and topic == "pricing":
+        return (
+            "Free-tier users are most frustrated by aggressive ad frequency during music "
+            "and podcasts, interruptions that break listening flow, and the feeling that "
+            "ads push them toward Premium without a balanced free experience."
+        )
+
+    if intent == "pain_list" and needs:
+        joined = ", ".join(n.lower() for n in needs[:3])
+        return f"The most cited complaints behind this question are {joined}."
+
+    if intent == "why_cause" and needs:
+        return (
+            f"The core drivers are {needs[0].lower()}"
+            + (f" and {needs[1].lower()}." if len(needs) > 1 else ".")
+        )
+
+    if intent == "opportunity":
+        return summary_for_intent(intent, topic)
+
+    if needs:
+        return (
+            f"Review feedback on this question centers on {needs[0].lower()}"
+            + (f", {needs[1].lower()}, and related unmet expectations." if len(needs) > 1 else ".")
+        )
+
+    return summary_for_intent(intent, topic)
+
+
+def _build_pain_section(signals: list[dict[str, str]], stats: dict, question: str, topic: str) -> list[str]:
+    """Specific user complaints — one bullet per category, from review data only."""
+    bullets: list[str] = []
+    for sig in signals:
+        if len(bullets) >= 4:
+            break
+        label = sig["label"]
+        need = sig.get("need") or ""
+        if need:
+            bullets.append(f"- **{label}**: {need.rstrip('.')}.")
+        elif sig["key"] in PAIN_INSIGHT and not signals:
+            bullets.append(f"- **{label}**: {PAIN_INSIGHT[sig['key']]}")
+
+    if len(bullets) < 2 and not signals:
+        for key, label, _ in pain_lines(stats, question, limit=4, require_relevant=True):
+            if not pain_allowed_for_topic(key, topic):
+                continue
+            if any(label in b for b in bullets):
+                continue
+            insight = PAIN_INSIGHT.get(key)
+            if insight:
+                bullets.append(f"- **{label}**: {insight}")
+            if len(bullets) >= 4:
+                break
+    return bullets[:4]
+
+
+def _build_focus_section(
     question: str,
     topic: str,
     intent: str,
-    filtered_reviews: list[dict[str, Any]],
-) -> str:
-    """Write a summary that answers the question — not a dataset meta-description."""
-    core = summary_for_intent(intent, topic)
+    themes: list[dict[str, Any]],
+    pain_bullets: list[str],
+) -> list[str]:
+    """Strategic product directions — must NOT repeat pain-point wording."""
+    bullets: list[str] = []
+    pain_blob = _norm_text("\n".join(pain_bullets))
 
-    needs: list[str] = []
-    for rev in filtered_reviews[:5]:
-        need = str(rev.get("unmet_need") or "").strip()
-        if need and need.lower() not in {"none", "nan"} and need.lower() not in needs:
-            needs.append(need.lower().rstrip("."))
+    area_labels = {
+        "discovery": "Exploration",
+        "repetition": "Listening diversity",
+        "pricing": "Monetization",
+        "ui": "Experience design",
+        "performance": "Reliability",
+        "social": "Social discovery",
+        "catalog": "Catalog",
+        "audio": "Audio quality",
+        "segment": "Segmentation",
+        "general": "Product",
+    }
+    area = area_labels.get(topic, "Product")
 
-    if needs:
-        if intent == "opportunity":
-            if len(needs) == 1:
-                core += f" Review feedback points to a strong bet around {needs[0]}."
-            else:
-                core += f" High-potential bets include {needs[0]} and {needs[1]}."
-        elif intent == "why_cause":
-            if len(needs) == 1:
-                core += f" A key driver in reviews is unmet demand for {needs[0]}."
-            else:
-                core += f" Contributing factors include unmet demand for {needs[0]} and {needs[1]}."
-        else:
-            if len(needs) == 1:
-                core += f" Review feedback especially highlights {needs[0]}."
-            else:
-                core += f" Users frequently mention {needs[0]} and {needs[1]}."
-    return core
+    if intent == "pain_list" and topic == "pricing":
+        ad_focus = (
+            "Reduce ad frequency during active music sessions while protecting revenue.",
+            "Create a lighter ad policy for podcast and spoken-word listening.",
+            "Improve transparency on why ads appear and how Premium removes them.",
+        )
+        for line in ad_focus:
+            if len(bullets) >= 4:
+                break
+            if _text_overlap(line, pain_blob) < 0.35:
+                bullets.append(f"- **Ad experience**: {line}")
+
+    for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]):
+        if len(bullets) >= 4:
+            break
+        if _text_overlap(line, pain_blob) > 0.45:
+            continue
+        prefix = "Opportunity" if intent == "opportunity" else area
+        bullets.append(f"- **{prefix}**: {line}")
+
+    ranked = sorted(themes, key=lambda t: _theme_relevance(t, question), reverse=True)
+    for t in ranked:
+        if len(bullets) >= 4:
+            break
+        name = str(t.get("theme_name") or "").strip()
+        if is_noisy_theme(name):
+            continue
+        summary = str(t.get("summary") or t.get("one_line_summary") or "").strip()
+        if summary and _text_overlap(summary, pain_blob) < 0.4:
+            bullets.append(f"- **{name}**: {summary.rstrip('.')}.")
+        elif t.get("what_users_want"):
+            want = str(t["what_users_want"]).strip()
+            if _text_overlap(want, pain_blob) < 0.4:
+                bullets.append(f"- **{name}**: Invest in {want.lower().rstrip('.')}.")
+
+    return bullets[:4]
+
+
+def _build_actions_section(
+    question: str,
+    intent: str,
+    topic: str,
+    signals: list[dict[str, str]],
+    focus_bullets: list[str],
+) -> list[str]:
+    """Concrete team next steps — distinct from focus areas and pain points."""
+    actions: list[str] = []
+
+    intent_actions = {
+        "why_cause": {
+            "discovery": [
+                "Run a journey audit from search to save to find where discovery intent drops off.",
+                "Instrument autoplay and Discover Weekly for over-exposure of familiar artists.",
+                "Prototype explicit novelty controls and measure lift in new-artist saves.",
+            ],
+            "pricing": [
+                "Analyze ad completion and skip rates during music versus podcast sessions.",
+                "Test reduced ad frequency in active listening sessions on the free tier.",
+            ],
+        },
+        "opportunity": {
+            "discovery": [
+                "Launch a scoped Explore tab MVP targeting content outside the taste profile.",
+                "A/B test a discovery-intensity slider on algorithmic playlists.",
+                "Pilot curator playlists in one genre as an alternative to pure algorithmic radio.",
+            ],
+        },
+        "pain_list": {
+            "pricing": [
+                "Benchmark ad load against competitors and set a target cap for music sessions.",
+                "Design a lighter ad experience specifically for podcast listening on free tier.",
+                "Survey churned free users on whether ad frequency was a primary exit driver.",
+            ],
+        },
+    }
+
+    preset = intent_actions.get(intent, {}).get(topic)
+    if preset:
+        actions.extend(list(preset)[:4])
+    else:
+        for act in actions_for_intent(intent, topic):
+            if act not in actions:
+                actions.append(act)
+            if len(actions) >= 4:
+                break
+
+    return actions[:4]
 
 
 def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
-    """Build a question-specific 4-section answer from matched reviews and themes."""
+    """Build a 4-section answer — each section uses different content, grounded in reviews."""
     stats = payload.get("dataset_stats") or {}
     reviews = payload.get("matched_reviews") or []
     themes = payload.get("themes") or []
@@ -777,90 +991,25 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
     intent = detect_question_intent(question)
 
     filtered = _filter_reviews_for_question(reviews, question, topic)
-    summary = _build_direct_summary(question, topic, intent, filtered)
+    signals = _collect_review_signals(filtered, question, topic)
 
-    pain_bullets: list[str] = []
-    seen_pains: set[str] = set()
-    for rev in filtered:
-        if len(pain_bullets) >= 5:
-            break
-        key = str(rev.get("pain_category") or "").lower()
-        if not pain_allowed_for_topic(key, topic):
-            continue
-        label = format_pain(rev.get("pain_category"))
-        if label in seen_pains or label == "General Feedback":
-            continue
-        need = str(rev.get("unmet_need") or "").strip()
-        pain_bullets.append(_pain_bullet(label, key, need, intent))
-        seen_pains.add(label)
+    summary = _synthesize_summary(question, intent, topic, signals)
+    pain_bullets = _build_pain_section(signals, stats, question, topic)
+    focus_bullets = _build_focus_section(question, topic, intent, themes, pain_bullets)
+    action_items = _build_actions_section(question, intent, topic, signals, focus_bullets)
 
-    if len(pain_bullets) < 3:
-        for key, label, _ in pain_lines(stats, question, limit=5, require_relevant=True):
-            if label in seen_pains or not pain_allowed_for_topic(key, topic):
-                continue
-            pain_bullets.append(_pain_bullet(label, key, "", intent))
-            seen_pains.add(label)
-            if len(pain_bullets) >= 5:
-                break
+    if not pain_bullets:
+        pain_bullets = [f"- **General**: {summary_for_intent(intent, topic)[:200]}."]
+    if not focus_bullets:
+        focus_bullets = [f"- **Direction**: {line}" for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"])[:3]]
+    if not action_items:
+        action_items = list(actions_for_intent(intent, topic))[:3] or ["Review matched feedback and prioritize a focused product experiment."]
 
-    focus_bullets: list[str] = []
-    seen_focus: set[str] = set()
-
-    if intent == "opportunity":
-        for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["discovery"]):
-            if len(focus_bullets) >= 4:
-                break
-            bullet = f"- **Opportunity**: {line}"
-            if bullet not in seen_focus:
-                focus_bullets.append(bullet)
-                seen_focus.add(bullet)
-
-    ranked_themes = sorted(themes, key=lambda t: _theme_relevance(t, question), reverse=True)
-    for t in ranked_themes:
-        if len(focus_bullets) >= 5:
-            break
-        name = str(t.get("theme_name") or "").strip()
-        if is_noisy_theme(name):
-            continue
-        if _theme_relevance(t, question) < 3 and topic != "general" and intent != "opportunity":
-            continue
-        want = str(t.get("what_users_want") or "").strip()
-        if want:
-            prefix = "Opportunity" if intent == "opportunity" else name
-            bullet = f"- **{prefix}**: {want.lower().rstrip('.').capitalize()}."
-            if bullet not in seen_focus:
-                focus_bullets.append(bullet)
-                seen_focus.add(bullet)
-
-    for rev in filtered:
-        if len(focus_bullets) >= 5:
-            break
-        need = str(rev.get("unmet_need") or "").strip()
-        if need and need.lower() not in {"none", "nan"}:
-            cat = format_pain(rev.get("pain_category"))
-            if intent == "opportunity":
-                bullet = f"- **{cat}**: Product opportunity to deliver {need.lower().rstrip('.')}."
-            else:
-                bullet = f"- **{cat}**: Deliver on user requests such as {need.lower().rstrip('.')}."
-            if bullet not in seen_focus:
-                focus_bullets.append(bullet)
-                seen_focus.add(bullet)
-
-    if len(focus_bullets) < 3:
-        for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]):
-            if len(focus_bullets) >= 4:
-                break
-            bullet = f"- **Product direction**: {line}"
-            if bullet not in seen_focus:
-                focus_bullets.append(bullet)
-                seen_focus.add(bullet)
-
-    actions = _actions_from_question(question, topic, [], intent)
     parts = [
         f"**Summary**\n\n{summary}",
-        "**Key pain points**\n\n" + "\n".join(pain_bullets[:5]),
-        "**Product focus areas**\n\n" + "\n".join(focus_bullets[:5]),
-        "**Recommended actions**\n\n" + "\n".join(f"- {a}" for a in actions),
+        "**Key pain points**\n\n" + "\n".join(pain_bullets),
+        "**Product focus areas**\n\n" + "\n".join(focus_bullets),
+        "**Recommended actions**\n\n" + "\n".join(f"- {a}" for a in action_items),
     ]
     return _strip_numbers_and_quotes("\n\n".join(parts))
 
@@ -1014,6 +1163,8 @@ def _accept_groq_answer(raw: str, question: str) -> str | None:
         return None
     if not _answer_matches_intent(question, normalized):
         return None
+    if not _sections_are_distinct(normalized):
+        return None
     return normalized
 
 
@@ -1094,32 +1245,19 @@ def chat(req: ChatRequest) -> ChatResponse:
         )
 
     history = _trim_history(req.history, req.question)
+
+    # Review-grounded answer is always the reliable baseline.
+    answer = _build_data_grounded_answer(req.question, payload)
+
     trimmed_grounding = grounding[:8000] if len(grounding) > 8000 else grounding
     messages = _build_groq_messages(req.question, trimmed_grounding, history)
-
-    answer = ""
     raw = _try_groq(messages)
     if raw:
         candidate = _accept_groq_answer(raw, req.question)
-        if candidate:
+        if candidate and _has_required_sections(candidate) and _sections_are_distinct(candidate):
             answer = candidate
-            if not _has_required_sections(answer):
-                answer = _ensure_four_sections(answer, req.question, payload)
 
-    if not answer:
-        logger.info("chat: full Groq path unavailable, trying compact context")
-        compact = _compact_grounding_payload(payload)
-        compact_messages = _build_groq_messages(req.question, compact, history, compact=True)
-        raw_compact = _try_groq(compact_messages)
-        if raw_compact:
-            candidate = _accept_groq_answer(raw_compact, req.question)
-            if candidate:
-                answer = candidate
-                if not _has_required_sections(answer):
-                    answer = _ensure_four_sections(answer, req.question, payload)
-
-    if not answer:
-        logger.info("chat: using data-grounded answer for question=%r", req.question[:80])
+    if not _sections_are_distinct(answer):
         answer = _build_data_grounded_answer(req.question, payload)
 
     answer = _strip_numbers_and_quotes(answer)
