@@ -143,12 +143,43 @@ export type FilterOptions = {
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
+export type DiscoveryInsightGroup = {
+  label: string;
+  count: number;
+  share_of_corpus: string;
+  share_of_pool: string;
+  examples: string[];
+};
+
+export type DiscoveryInsightSection = {
+  description: string;
+  pool_size: number;
+  pool_share_of_corpus: string;
+  groups: DiscoveryInsightGroup[];
+};
+
+export type DiscoveryInsightsPayload = {
+  computed_at: string;
+  totals: {
+    total_reviews: number;
+    discovery_related: number;
+    discovery_related_share: string;
+    repetition_related: number;
+    repetition_related_share: string;
+  };
+  discovery_struggles: DiscoveryInsightSection;
+  repetition_causes: DiscoveryInsightSection;
+  discovery_frustrations: DiscoveryInsightSection;
+  discovery_unmet_needs: DiscoveryInsightSection;
+};
+
 export const api = {
   health: () => jget<{ status: string; data: Record<string, unknown> }>("/health"),
   stats: () => jget<Stats>("/stats"),
   themes: () => jget<ThemesPayload>("/themes"),
   report: () => jget<{ markdown: string }>("/report"),
   filters: () => jget<FilterOptions>("/insights/filters"),
+  discoveryInsights: () => jget<DiscoveryInsightsPayload>("/discovery-insights"),
   insights: (params: Record<string, string | number | boolean | undefined>) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {

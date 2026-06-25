@@ -31,6 +31,7 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from groq_env import groq_api_key, groq_chat_model  # noqa: E402
 from rag import build_review_context  # noqa: E402
+from discovery_insights import compute_discovery_insights  # noqa: E402
 from format_labels import (  # noqa: E402
     FOCUS_AREA_BY_TOPIC,
     PAIN_INSIGHT,
@@ -1228,9 +1229,60 @@ def _build_evidence_pack(
             ],
         }
 
+    # Inject dedicated discovery insights when the question is about discovery,
+    # repetition, recommendations, or listening behaviour.
+    discovery_topics = {"discovery", "recommendations", "listening_behavior", "general"}
+    q_lower = question.lower()
+    discovery_keywords = (
+        "discover", "discovery", "explore", "exploration", "find new", "new music",
+        "new artist", "new song", "fresh music",
+        "repeat", "repetition", "repetitive", "same song", "same artist", "loop",
+        "shuffle", "autoplay", "recommend",
+    )
+    triggered_by_topic = topic in discovery_topics
+    triggered_by_text = any(kw in q_lower for kw in discovery_keywords)
+    if triggered_by_topic or triggered_by_text:
+        try:
+            di = compute_discovery_insights()
+            pack["discovery_insights"] = _select_discovery_sections(di, question)
+        except Exception:  # pragma: no cover - never block answer on this
+            logger.exception("Failed to attach discovery insights to evidence pack")
+
     pack["intent"] = intent
     pack["topic"] = topic
     return pack
+
+
+def _select_discovery_sections(di: dict[str, Any], question: str) -> dict[str, Any]:
+    """Return only the discovery insight sections relevant to the question."""
+    q = question.lower()
+    sections: list[str] = []
+    if any(k in q for k in ("repeat", "repetition", "repetitive", "same song", "same artist", "loop", "shuffle", "autoplay")):
+        sections.append("repetition_causes")
+    if any(k in q for k in ("frustrat", "annoy", "complain", "hate", "dislike", "problem")):
+        sections.append("discovery_frustrations")
+    if any(k in q for k in ("need", "want", "wish", "should", "opportunity", "improve", "fix")):
+        sections.append("discovery_unmet_needs")
+    if any(k in q for k in ("why", "cause", "struggle", "hard", "difficult", "can't", "cannot")):
+        sections.append("discovery_struggles")
+    # Default: when no specific keyword matches, return all 4 so the LLM can pick.
+    if not sections:
+        sections = ["discovery_struggles", "repetition_causes", "discovery_frustrations", "discovery_unmet_needs"]
+    out: dict[str, Any] = {"totals": di.get("totals", {})}
+    for key in sections:
+        block = di.get(key) or {}
+        groups = [g for g in (block.get("groups") or []) if not g["label"].startswith("Other")][:5]
+        if not groups and block.get("groups"):
+            groups = block["groups"][:3]
+        if not groups:
+            continue
+        out[key] = {
+            "description": block.get("description"),
+            "pool_size": block.get("pool_size"),
+            "pool_share_of_corpus": block.get("pool_share_of_corpus"),
+            "groups": groups,
+        }
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1263,7 +1315,33 @@ def _evidence_section_lines(evidence: dict[str, Any]) -> list[str]:
                 f"- Within matched reviews, **{item['label']}** accounts for "
                 f"{mentions} ({item['share_of_matched']})."
             )
-    return lines[:6]
+
+    # Surface discovery insight evidence when attached.
+    discovery = evidence.get("discovery_insights") or {}
+    for section_key, prefix in (
+        ("discovery_struggles", "Discovery struggle"),
+        ("repetition_causes", "Repetition cause"),
+        ("discovery_frustrations", "Discovery frustration"),
+        ("discovery_unmet_needs", "Discovery unmet need"),
+    ):
+        block = discovery.get(section_key)
+        if not block:
+            continue
+        for group in (block.get("groups") or [])[:2]:
+            count = int(group.get("count") or 0)
+            noun = "review" if count == 1 else "reviews"
+            share_pool = group.get("share_of_pool") or ""
+            share_corpus = group.get("share_of_corpus") or ""
+            share_bits = [b for b in (share_pool and f"{share_pool} of pool", share_corpus and f"{share_corpus} of corpus") if b]
+            share_suffix = f" — {', '.join(share_bits)}" if share_bits else ""
+            lines.append(
+                f"- {prefix} — **{group['label']}**: {count:,} {noun}{share_suffix}."
+            )
+            if len(lines) >= 12:
+                break
+        if len(lines) >= 12:
+            break
+    return lines[:12]
 
 
 _LABEL_TO_PAIN_KEY: dict[str, str] = {
@@ -1326,6 +1404,36 @@ def _root_cause_lines(
     """Root causes — paraphrase unmet-need patterns from matched reviews + themes."""
     causes: list[str] = []
     seen: set[str] = set()
+
+    # When the question is about discovery/repetition, seed root causes with the
+    # grouped discovery insight findings (these are real, counted patterns).
+    discovery = evidence.get("discovery_insights") or {}
+    seed_keys: list[tuple[str, str]] = []
+    q_lower = question.lower()
+    if any(k in q_lower for k in ("repeat", "repetition", "repetitive", "same", "loop", "shuffle", "autoplay")):
+        seed_keys.append(("repetition_causes", "Repetition driver"))
+    if any(k in q_lower for k in ("why", "cause", "struggle", "hard", "difficult", "discover", "find")):
+        seed_keys.append(("discovery_struggles", "Discovery struggle"))
+    for section_key, label_prefix in seed_keys:
+        block = discovery.get(section_key) or {}
+        for group in (block.get("groups") or [])[:3]:
+            label = group.get("label") or ""
+            if not label:
+                continue
+            norm = _norm_text(label)[:100]
+            if norm in seen:
+                continue
+            count = group.get("count")
+            share = group.get("share_of_pool") or group.get("share_of_corpus") or ""
+            suffix_bits = [b for b in (_mentions(count), share) if b]
+            suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
+            causes.append(f"- **{label_prefix}**: {label.rstrip('.')}.{suffix}")
+            seen.add(norm)
+            if len(causes) >= 4:
+                break
+        if len(causes) >= 4:
+            break
+
     reviews = payload.get("matched_reviews") or []
     filtered = _filter_reviews_for_question(reviews, question, topic, limit=12)
     for rev in filtered:
@@ -1383,8 +1491,29 @@ def _segment_lines(evidence: dict[str, Any]) -> list[str]:
 def _unmet_need_lines(payload: dict[str, Any], evidence: dict[str, Any], question: str, topic: str) -> list[str]:
     lines: list[str] = []
     seen: set[str] = set()
+
+    # First, surface any grouped discovery unmet-need findings (counts + percentages).
+    discovery_block = (evidence.get("discovery_insights") or {}).get("discovery_unmet_needs") or {}
+    for group in (discovery_block.get("groups") or [])[:4]:
+        label = str(group.get("label") or "").strip()
+        if not label:
+            continue
+        norm = _norm_text(label)[:100]
+        if norm in seen:
+            continue
+        count = group.get("count")
+        share = group.get("share_of_pool") or group.get("share_of_corpus") or ""
+        suffix_bits = [b for b in (_mentions(count), share) if b]
+        suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
+        lines.append(f"- **{label}**{suffix}.")
+        seen.add(norm)
+        if len(lines) >= 5:
+            break
+
     reviews = payload.get("matched_reviews") or []
     for rev in _filter_reviews_for_question(reviews, question, topic, limit=12):
+        if len(lines) >= 5:
+            break
         need = str(rev.get("unmet_need") or "").strip()
         if not need or need.lower() in {"none", "nan"}:
             continue
@@ -1393,8 +1522,6 @@ def _unmet_need_lines(payload: dict[str, Any], evidence: dict[str, Any], questio
             continue
         lines.append(f"- {need.rstrip('.')}.")
         seen.add(norm)
-        if len(lines) >= 5:
-            break
 
     if len(lines) < 3:
         for item in evidence.get("top_unmet_needs") or []:
