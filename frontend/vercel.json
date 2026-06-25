@@ -4,6 +4,9 @@
   "buildCommand": "npm run build",
   "installCommand": "npm install",
   "regions": ["iad1"],
+  "env": {
+    "BACKEND_URL": "https://spotify-api-production-73c6.up.railway.app"
+  },
   "functions": {
     "app/backend-api/[...path]/route.ts": {
       "maxDuration": 60
