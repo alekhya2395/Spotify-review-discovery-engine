@@ -1,11 +1,16 @@
-"""Groq-grounded chat — answers are structured into 4 sections and tailored to
-each question. No review counts, no verbatim quotes, no review IDs.
+"""Groq-grounded chat — every answer is tailored to the user's question.
 
-Sections:
-1. Summary
-2. Key pain points
-3. Product focus areas
-4. Recommended actions
+Output is an 8-section markdown structure where each section is included only
+when the indexed review data supports it:
+
+1. Summary             (always)
+2. Evidence            (counts/%s computed from the dataset — never invented)
+3. Key Pain Points     (when matched reviews carry pain categories)
+4. Root Causes         (when matched reviews carry unmet needs / themes)
+5. Affected User Segments (when segment distribution is meaningful)
+6. Unmet Needs         (when reviews/themes call out unmet expectations)
+7. Product Focus Areas (when the question asks about direction or opportunity)
+8. Recommended Actions (always for actionable questions)
 """
 
 from __future__ import annotations
@@ -33,6 +38,7 @@ from format_labels import (  # noqa: E402
     detect_question_intent,
     detect_topic,
     format_pain,
+    format_segment,
     is_noisy_theme,
     pain_allowed_for_topic,
     pain_lines,
@@ -55,60 +61,143 @@ CHAT_STABLE_MODE = os.getenv("CHAT_STABLE_MODE", "false").lower() in ("1", "true
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_CHARS = 600
 
-SECTION_ORDER = ["Summary", "Key pain points", "Product focus areas", "Recommended actions"]
+SECTION_ORDER = [
+    "Summary",
+    "Evidence",
+    "Key Pain Points",
+    "Root Causes",
+    "Affected User Segments",
+    "Unmet Needs",
+    "Product Focus Areas",
+    "Recommended Actions",
+]
+
+REQUIRED_SECTIONS = {"Summary"}
 
 SECTION_ALIASES: dict[str, str] = {
     "summary": "Summary",
     "executive summary": "Summary",
     "overview": "Summary",
-    "key pain points": "Key pain points",
-    "pain points": "Key pain points",
-    "key findings": "Key pain points",
-    "main pain points": "Key pain points",
-    "product focus areas": "Product focus areas",
-    "focus areas": "Product focus areas",
-    "product priorities": "Product focus areas",
-    "recommended actions": "Recommended actions",
-    "recommendations": "Recommended actions",
-    "next steps": "Recommended actions",
-    "actions": "Recommended actions",
-    "suggested actions": "Recommended actions",
+    "tldr": "Summary",
+    "evidence": "Evidence",
+    "supporting evidence": "Evidence",
+    "data points": "Evidence",
+    "data evidence": "Evidence",
+    "key pain points": "Key Pain Points",
+    "pain points": "Key Pain Points",
+    "key findings": "Key Pain Points",
+    "main pain points": "Key Pain Points",
+    "top complaints": "Key Pain Points",
+    "root causes": "Root Causes",
+    "root cause": "Root Causes",
+    "underlying causes": "Root Causes",
+    "drivers": "Root Causes",
+    "why it happens": "Root Causes",
+    "affected user segments": "Affected User Segments",
+    "user segments": "Affected User Segments",
+    "affected segments": "Affected User Segments",
+    "segments affected": "Affected User Segments",
+    "who is affected": "Affected User Segments",
+    "unmet needs": "Unmet Needs",
+    "user needs": "Unmet Needs",
+    "what users want": "Unmet Needs",
+    "what users need": "Unmet Needs",
+    "missing needs": "Unmet Needs",
+    "product focus areas": "Product Focus Areas",
+    "focus areas": "Product Focus Areas",
+    "product priorities": "Product Focus Areas",
+    "strategic focus": "Product Focus Areas",
+    "where to focus": "Product Focus Areas",
+    "recommended actions": "Recommended Actions",
+    "recommendations": "Recommended Actions",
+    "next steps": "Recommended Actions",
+    "actions": "Recommended Actions",
+    "suggested actions": "Recommended Actions",
+    "action items": "Recommended Actions",
+}
+
+# Map question intents → sections that are most relevant. Other sections are
+# emitted only when the review data clearly supports them.
+INTENT_SECTIONS: dict[str, tuple[str, ...]] = {
+    "why_cause": (
+        "Summary", "Evidence", "Key Pain Points", "Root Causes",
+        "Recommended Actions",
+    ),
+    "opportunity": (
+        "Summary", "Evidence", "Product Focus Areas", "Unmet Needs",
+        "Recommended Actions",
+    ),
+    "pain_list": (
+        "Summary", "Evidence", "Key Pain Points", "Affected User Segments",
+        "Recommended Actions",
+    ),
+    "listening_goals": (
+        "Summary", "Evidence", "Unmet Needs", "Affected User Segments",
+        "Product Focus Areas",
+    ),
+    "segment_question": (
+        "Summary", "Evidence", "Affected User Segments", "Key Pain Points",
+        "Recommended Actions",
+    ),
+    "general": (
+        "Summary", "Evidence", "Key Pain Points", "Root Causes",
+        "Affected User Segments", "Unmet Needs", "Product Focus Areas",
+        "Recommended Actions",
+    ),
 }
 
 SYSTEM_PROMPT = """You are the Spotify Review Discovery Engine — a senior product analyst answering questions about Spotify user feedback.
 
-You answer questions using ONLY the review context provided. You write in a clear, professional, executive-ready tone.
+You answer using ONLY the review context provided. Tone: clear, professional, executive-ready.
 
-CRITICAL RULES:
-- Your answer MUST be directly relevant to the specific question asked. Different questions must produce substantially different answers.
-- Read the QUESTION carefully first — every section must address what was asked, not a generic Spotify overview.
-- The Summary MUST directly answer the question in plain language — never describe the dataset or repeat the question.
-- Match the question TYPE: "why/cause/struggle" explains root causes; "opportunity/improve" highlights product bets; "frustration/pain" lists top complaints.
-- Each of the 4 sections MUST contain different information — do NOT repeat the same point across Summary, Key pain points, Product focus areas, and Recommended actions.
-- Key pain points = specific user complaints from the context. Product focus areas = strategic product directions (not the same wording as pain points). Recommended actions = concrete next steps for the product team (not duplicates of focus areas).
-- NEVER start the Summary with "Regarding", "Indexed reviews tie", or "User feedback points to recurring friction" unless the question is extremely broad.
-- NEVER include pain points unrelated to the question (e.g. do not mention pricing when asked only about discovery).
-- NEVER include any numbers, counts, percentages, or statistics in your answer.
-- NEVER include verbatim user quotes or review excerpts.
-- NEVER mention review IDs, dataset sizes, or sample sizes.
-- Present insights as qualitative findings — describe patterns, themes, and sentiments observed in the data.
-- Stay tightly focused on the user's QUESTION — do not drift into unrelated pain areas.
+CRITICAL RULES
+1. Tailor every answer to the EXACT question. Different questions must produce substantially different answers.
+2. Before writing, identify the user's intent: cause, opportunity, complaint, segment-question, behavior, etc. The answer must serve that intent.
+3. Only include sections that are SUPPORTED by the supplied review data. Omit sections that the data does not back up.
+4. Never invent numbers. Numbers, counts, and percentages may only come from `dataset_stats` or `evidence` in the CONTEXT.
+5. Never copy verbatim user quotes or review IDs. Paraphrase patterns instead.
+6. Each section must add new information. Do not repeat the same point across Summary, Pain Points, Causes, Focus Areas, and Actions.
 
-EVERY answer MUST follow this EXACT structure with these EXACT 4 section headers (markdown bold):
+OUTPUT FORMAT (markdown — use `## Header` for each section)
 
-**Summary**
-A concise 2-3 sentence direct answer to the user's question — state the finding as a product insight, not a meta description of reviews.
+## Summary
+2–3 sentences that directly answer the question. State the finding as a product insight, not a description of the dataset.
 
-**Key pain points**
-3-5 bullets. Each bullet describes a specific pain point RELEVANT TO THE QUESTION. Format: `- **<Category Name>**: <one sentence describing the pain in plain language>`. Only include pain points that directly relate to the question asked.
+## Evidence
+Bullet list of the strongest numeric signals from `dataset_stats` or `evidence` that support the answer.
+- Use exact counts/percentages from CONTEXT only.
+- If CONTEXT supplies no real numbers relevant to the question, OMIT this section entirely.
 
-**Product focus areas**
-3-5 bullets. Each bullet identifies a concrete product area Spotify should improve to address the pain points above. Format: `- **<Area>**: <specific direction or improvement opportunity>`.
+## Key Pain Points
+3–5 bullets. Each bullet is a specific user complaint RELEVANT to the question.
+Format: `- **<Pain Category>**: <one sentence>.`
 
-**Recommended actions**
-3-4 bullets. Each bullet is a concrete, actionable next step for the Spotify product team that directly addresses the question. Be specific and practical.
+## Root Causes
+3–5 bullets explaining WHY the pain points happen, drawn from review unmet_need patterns and themes.
+Format: `- **<Cause label>**: <one sentence>.`
 
-Output ONLY these four sections, nothing else. Total length under 300 words."""
+## Affected User Segments
+3–5 bullets naming user segments most impacted. Use segments named in the context. Add a % only if it appears in `dataset_stats.segments` or `evidence`.
+
+## Unmet Needs
+3–5 bullets describing what users are trying to achieve but currently cannot. Paraphrase `unmet_need` patterns.
+
+## Product Focus Areas
+3–5 bullets — strategic product directions Spotify should prioritize. Distinct from the pain points above.
+
+## Recommended Actions
+3–5 bullets — concrete next steps for the Spotify product team. Specific, practical, distinct from focus areas.
+
+SECTION SELECTION
+- ALWAYS include `## Summary`.
+- Omit any section without supporting data in CONTEXT.
+- "Why / cause / struggle" questions → emphasize Evidence, Key Pain Points, Root Causes, Recommended Actions.
+- "Opportunity / improve / how should we" questions → emphasize Unmet Needs, Product Focus Areas, Recommended Actions.
+- "Who / which users / which segment" questions → emphasize Affected User Segments, Key Pain Points.
+- "What pain points / complaints / frustrations" questions → emphasize Evidence, Key Pain Points, Affected User Segments.
+
+Length: 250–500 words total. No preamble, no closing remark — output the markdown sections only.
+"""
 
 
 class ChatRequest(BaseModel):
@@ -472,12 +561,9 @@ Analysis of Spotify user feedback reveals that the most significant areas of con
 # Output sanitizer — removes all numbers, counts, quotes from answers
 # ---------------------------------------------------------------------------
 
-_NUMBER_PATTERNS = [
-    re.compile(r"\*\*[\d,]+\*\*"),
-    re.compile(r"\b\d{1,6}(?:,\d{3})*\s*(?:reviews?|users?|mentions?|complaints?|responses?)\b", re.IGNORECASE),
-    re.compile(r"\b(?:across|of|from|out of|analyzed|indexed)\s+\d[\d,]*\b", re.IGNORECASE),
-    re.compile(r"\(\d[\d,%]*(?:\s*reviews?)?\)"),
-    re.compile(r"\b\d+(?:\.\d+)?%"),
+# IDs and verbatim quotes are stripped; numeric evidence is preserved so the
+# Evidence section can carry real counts and percentages from the dataset.
+_ID_PATTERNS = [
     re.compile(r"(?:app_store|play_store|reddit|social_media|community_forum):[^\s,;]+", re.IGNORECASE),
     re.compile(r"\breview[_\s-]?id[:\s]+\S+", re.IGNORECASE),
 ]
@@ -485,25 +571,53 @@ _NUMBER_PATTERNS = [
 _QUOTE_PATTERNS = [
     re.compile(r'^>\s*".*"$', re.MULTILINE),
     re.compile(r"^>\s*—.*$", re.MULTILINE),
-    re.compile(r'^"[^"]{20,}"', re.MULTILINE),
+    re.compile(r'^"[^"]{40,}"$', re.MULTILINE),
 ]
 
 
-def _strip_numbers_and_quotes(text: str) -> str:
-    for pat in _NUMBER_PATTERNS:
+def _strip_ids_and_quotes(text: str) -> str:
+    """Remove review IDs and standalone verbatim quotes — keep evidence numbers."""
+    for pat in _ID_PATTERNS:
         text = pat.sub("", text)
     for pat in _QUOTE_PATTERNS:
         text = pat.sub("", text)
     text = re.sub(r"\(\s*\)", "", text)
-    text = re.sub(r":\s*reviews\b", ":", text)
     text = re.sub(r"[^\S\n]{2,}", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
 
+# Legacy alias kept for any internal callers; behavior switched to preserve numbers.
+_strip_numbers_and_quotes = _strip_ids_and_quotes
+
+
 # ---------------------------------------------------------------------------
 # Section normalizer
 # ---------------------------------------------------------------------------
+
+
+_HEADER_PATTERNS = (
+    re.compile(r"^\s*#{1,6}\s+(.+?)\s*$"),                   # "## Header"
+    re.compile(r"^\s*\*\*([^*]+?)\*\*\s*:?\s*$"),            # "**Header**"
+    re.compile(r"^\s*\*\*([^*]+?)\*\*\s*[:\-\u2014]\s*(.+)$"),  # "**Header**: inline"
+)
+
+
+def _match_header(line: str) -> tuple[str | None, str]:
+    """Return (canonical_section, inline_content) if line is a known header."""
+    for pat in _HEADER_PATTERNS:
+        m = pat.match(line)
+        if not m:
+            continue
+        header_raw = m.group(1)
+        inline = m.group(2).strip() if m.lastindex and m.lastindex >= 2 else ""
+        key = header_raw.strip().lower().rstrip(":").strip("*").strip()
+        # Drop leading numbering like "1. Summary" or "1) Summary"
+        key = re.sub(r"^\d+[\.\)]\s*", "", key)
+        canonical = SECTION_ALIASES.get(key)
+        if canonical:
+            return canonical, inline
+    return None, ""
 
 
 def _split_into_sections(text: str) -> dict[str, str]:
@@ -521,24 +635,13 @@ def _split_into_sections(text: str) -> dict[str, str]:
         buffer = []
 
     for raw in lines:
-        m = re.match(r"^\s*\*\*([^*]+?)\*\*\s*:?\s*$", raw)
-        if m:
-            header = m.group(1).strip().lower().rstrip(":")
-            canonical = SECTION_ALIASES.get(header)
-            if canonical:
-                flush()
-                current = canonical
-                continue
-        m2 = re.match(r"^\s*\*\*([^*]+?)\*\*\s*[:\-\u2014]?\s*(.+)$", raw)
-        if m2:
-            header = m2.group(1).strip().lower().rstrip(":")
-            rest = m2.group(2).strip()
-            canonical = SECTION_ALIASES.get(header)
-            if canonical and rest and not rest.startswith("**"):
-                flush()
-                current = canonical
-                buffer.append(rest)
-                continue
+        canonical, inline = _match_header(raw)
+        if canonical:
+            flush()
+            current = canonical
+            if inline:
+                buffer.append(inline)
+            continue
         buffer.append(raw)
 
     flush()
@@ -546,12 +649,10 @@ def _split_into_sections(text: str) -> dict[str, str]:
 
 
 def _enforce_section_order(text: str) -> str:
+    """Normalize headers to `## Header` and emit only known sections in canonical order."""
     sections = _split_into_sections(text)
     if not sections:
         return text.strip()
-
-    # Remove any "Voice of the user" section the LLM may have added
-    sections.pop("Voice of the user", None)
 
     parts: list[str] = []
     for name in SECTION_ORDER:
@@ -560,10 +661,18 @@ def _enforce_section_order(text: str) -> str:
             continue
         body = re.sub(r"^---+\s*$", "", body, flags=re.MULTILINE).strip()
         if body:
-            parts.append(f"**{name}**\n\n{body}")
+            parts.append(f"## {name}\n\n{body}")
     if not parts:
         return text.strip()
     return "\n\n".join(parts)
+
+
+def _has_required_sections(text: str) -> bool:
+    """An answer is valid if it has a Summary plus at least one other section."""
+    sections = _split_into_sections(text)
+    if "Summary" not in sections:
+        return False
+    return len([k for k, v in sections.items() if v]) >= 2
 
 
 # ---------------------------------------------------------------------------
@@ -1008,38 +1117,397 @@ def _build_actions_section(
     return actions[:4]
 
 
-def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
-    """Build a 4-section answer — each section uses different content, grounded in reviews."""
+# ---------------------------------------------------------------------------
+# Evidence pack — exact counts/percentages from the dataset for grounding
+# ---------------------------------------------------------------------------
+
+
+def _pct(numerator: int | float, denom: int | float) -> str:
+    if not denom:
+        return ""
+    return f"{round(100 * float(numerator) / float(denom), 1)}%"
+
+
+def _build_evidence_pack(
+    question: str,
+    payload: dict[str, Any],
+    topic: str,
+    intent: str,
+) -> dict[str, Any]:
+    """Compute real counts/percentages relevant to the question. No fabrication."""
     stats = payload.get("dataset_stats") or {}
     reviews = payload.get("matched_reviews") or []
-    themes = payload.get("themes") or []
-    topic = detect_topic(question)
-    intent = detect_question_intent(question)
+    total = int(stats.get("total_reviews") or 0)
 
-    filtered = _filter_reviews_for_question(reviews, question, topic)
-    signals = _collect_review_signals(filtered, question, topic)
+    pack: dict[str, Any] = {"total_reviews": total}
 
-    summary = _synthesize_summary(question, intent, topic, signals)
-    pain_bullets = _build_pain_section(signals, stats, question, topic)
-    focus_bullets = _build_focus_section(question, topic, intent, themes, pain_bullets)
-    action_items = _build_actions_section(question, intent, topic, signals, focus_bullets)
+    if stats.get("discovery_related") is not None and total:
+        pack["discovery_related"] = {
+            "count": int(stats["discovery_related"]),
+            "share": _pct(stats["discovery_related"], total),
+        }
 
-    if not pain_bullets:
-        pain_bullets = [f"- **General**: {summary_for_intent(intent, topic)[:200]}."]
-    if not focus_bullets:
-        focus_bullets = [f"- **Direction**: {line}" for line in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"])[:3]]
-    if not action_items:
-        action_items = list(actions_for_intent(intent, topic))[:4] or [
-            "Analyze matched review themes and define a focused two-week product experiment.",
+    # Pain categories relevant to the question's topic
+    pain_counts: dict[str, int] = dict(stats.get("top_pain_categories") or {})
+    if pain_counts and total:
+        ranked: list[dict[str, Any]] = []
+        for key, count in pain_counts.items():
+            label = format_pain(str(key))
+            relevant = pain_allowed_for_topic(str(key), topic) or topic == "general"
+            ranked.append({
+                "key": str(key),
+                "label": label,
+                "count": int(count),
+                "share": _pct(count, total),
+                "relevant": relevant,
+            })
+        ranked.sort(key=lambda r: (not r["relevant"], -r["count"]))
+        pack["pain_categories"] = ranked[:8]
+
+    # Segment distribution
+    seg_counts: dict[str, int] = dict(stats.get("segments") or {})
+    if seg_counts and total:
+        pack["segments"] = [
+            {"label": str(name), "count": int(c), "share": _pct(c, total)}
+            for name, c in list(seg_counts.items())[:8]
         ]
 
-    parts = [
-        f"**Summary**\n\n{summary}",
-        "**Key pain points**\n\n" + "\n".join(pain_bullets),
-        "**Product focus areas**\n\n" + "\n".join(focus_bullets),
-        "**Recommended actions**\n\n" + "\n".join(f"- {a}" for a in action_items),
-    ]
-    return _strip_numbers_and_quotes("\n\n".join(parts))
+    # Source mix
+    src_counts: dict[str, int] = dict(stats.get("sources") or {})
+    if src_counts and total:
+        pack["sources"] = [
+            {"label": str(name), "count": int(c), "share": _pct(c, total)}
+            for name, c in list(src_counts.items())[:6]
+        ]
+
+    # Sentiment mix
+    sent_counts: dict[str, int] = dict(stats.get("sentiments") or {})
+    if sent_counts and total:
+        pack["sentiments"] = [
+            {"label": str(name), "count": int(c), "share": _pct(c, total)}
+            for name, c in sent_counts.items()
+        ]
+
+    # Top unmet needs (already counted by rag.py)
+    unmet: dict[str, int] = dict(stats.get("top_unmet_needs") or {})
+    if unmet:
+        pack["top_unmet_needs"] = [
+            {"label": str(name), "count": int(c)}
+            for name, c in list(unmet.items())[:6]
+        ]
+
+    # Matched review summary for this question
+    matched_total = len(reviews)
+    if matched_total:
+        matched_pains: dict[str, int] = {}
+        for rev in reviews:
+            key = str(rev.get("pain_category") or "").lower().strip()
+            if not key or key in {"none", "nan"}:
+                continue
+            matched_pains[key] = matched_pains.get(key, 0) + 1
+        matched_segments: dict[str, int] = {}
+        for rev in reviews:
+            seg = str(rev.get("segment") or "").strip()
+            if not seg:
+                continue
+            matched_segments[seg] = matched_segments.get(seg, 0) + 1
+        pack["matched_reviews"] = {
+            "count": matched_total,
+            "share_of_dataset": _pct(matched_total, total) if total else "",
+            "top_pain_categories": [
+                {
+                    "label": format_pain(k),
+                    "count": v,
+                    "share_of_matched": _pct(v, matched_total),
+                }
+                for k, v in sorted(matched_pains.items(), key=lambda x: -x[1])[:5]
+            ],
+            "top_segments": [
+                {"label": k, "count": v, "share_of_matched": _pct(v, matched_total)}
+                for k, v in sorted(matched_segments.items(), key=lambda x: -x[1])[:5]
+            ],
+        }
+
+    pack["intent"] = intent
+    pack["topic"] = topic
+    return pack
+
+
+# ---------------------------------------------------------------------------
+# 8-section data-grounded answer (used when Groq is unavailable)
+# ---------------------------------------------------------------------------
+
+
+def _evidence_section_lines(evidence: dict[str, Any]) -> list[str]:
+    """Build the Evidence bullets from the precomputed evidence pack."""
+    lines: list[str] = []
+    total = evidence.get("total_reviews") or 0
+    if total:
+        lines.append(f"- Indexed reviews analyzed: **{total:,}**.")
+    if evidence.get("discovery_related"):
+        d = evidence["discovery_related"]
+        lines.append(
+            f"- Discovery-related feedback: **{d['count']:,}** reviews ({d['share']})."
+        )
+    matched = evidence.get("matched_reviews") or {}
+    if matched.get("count"):
+        line = f"- Reviews directly matching this question: **{matched['count']:,}**"
+        if matched.get("share_of_dataset"):
+            line += f" ({matched['share_of_dataset']} of the corpus)"
+        lines.append(line + ".")
+        for item in (matched.get("top_pain_categories") or [])[:3]:
+            mentions = _mentions(item.get("count"))
+            if not mentions:
+                continue
+            lines.append(
+                f"- Within matched reviews, **{item['label']}** accounts for "
+                f"{mentions} ({item['share_of_matched']})."
+            )
+    return lines[:6]
+
+
+_LABEL_TO_PAIN_KEY: dict[str, str] = {
+    "Algorithm & Recommendations": "recommendation_quality",
+    "UI/UX Issues": "ui_ux",
+    "Pricing & Value": "pricing",
+    "Catalog & Availability": "content_availability",
+    "Listening Behavior": "listening_behavior",
+    "Social Features": "social_features",
+    "Music Discovery": "discovery",
+    "Performance & Stability": "performance",
+    "Ads & Free Tier": "ads",
+    "Audio Quality": "audio_quality",
+    "General Feedback": "none",
+}
+
+
+def _mentions(count: int | float | None) -> str:
+    try:
+        n = int(count or 0)
+    except (TypeError, ValueError):
+        return ""
+    if n == 0:
+        return ""
+    return f"{n} mention" if n == 1 else f"{n} mentions"
+
+
+def _pain_section_lines(evidence: dict[str, Any], topic: str) -> list[str]:
+    """Key pain points — one bullet per category with the right insight per category."""
+    lines: list[str] = []
+    matched = evidence.get("matched_reviews") or {}
+    pool = matched.get("top_pain_categories") or evidence.get("pain_categories") or []
+    seen: set[str] = set()
+    for item in pool:
+        label = item.get("label") or ""
+        if not label or label in seen:
+            continue
+        key = (item.get("key") or _LABEL_TO_PAIN_KEY.get(label) or "").lower()
+        if key and topic and topic != "general" and not pain_allowed_for_topic(key, topic):
+            continue
+        insight = PAIN_INSIGHT.get(key) or summary_for_intent("pain_list", topic)
+        count = item.get("count")
+        share = item.get("share_of_matched") or item.get("share") or ""
+        mentions = _mentions(count)
+        suffix_bits = [b for b in (mentions, share) if b]
+        suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
+        lines.append(f"- **{label}**{suffix}: {insight}")
+        seen.add(label)
+        if len(lines) >= 5:
+            break
+    return lines
+
+
+def _root_cause_lines(
+    payload: dict[str, Any],
+    evidence: dict[str, Any],
+    question: str,
+    topic: str,
+) -> list[str]:
+    """Root causes — paraphrase unmet-need patterns from matched reviews + themes."""
+    causes: list[str] = []
+    seen: set[str] = set()
+    reviews = payload.get("matched_reviews") or []
+    filtered = _filter_reviews_for_question(reviews, question, topic, limit=12)
+    for rev in filtered:
+        need = str(rev.get("unmet_need") or "").strip()
+        if not need or need.lower() in {"none", "nan"}:
+            continue
+        norm = _norm_text(need)[:100]
+        if norm in seen:
+            continue
+        pain_key = str(rev.get("pain_category") or "").lower()
+        if pain_key and not pain_allowed_for_topic(pain_key, topic) and topic != "general":
+            continue
+        label = format_pain(pain_key) if pain_key else "Underlying driver"
+        causes.append(f"- **{label}**: {need.rstrip('.')}.")
+        seen.add(norm)
+        if len(causes) >= 4:
+            break
+
+    if len(causes) < 3:
+        for theme in (payload.get("themes") or [])[:6]:
+            name = str(theme.get("theme_name") or "").strip()
+            if not name or is_noisy_theme(name):
+                continue
+            want = str(theme.get("what_users_want") or theme.get("summary") or "").strip()
+            if not want:
+                continue
+            norm = _norm_text(want)[:100]
+            if norm in seen:
+                continue
+            causes.append(f"- **{name}**: {want.rstrip('.')}.")
+            seen.add(norm)
+            if len(causes) >= 4:
+                break
+    return causes
+
+
+def _segment_lines(evidence: dict[str, Any]) -> list[str]:
+    matched = (evidence.get("matched_reviews") or {}).get("top_segments") or []
+    pool = matched or evidence.get("segments") or []
+    lines: list[str] = []
+    for item in pool[:5]:
+        label = item.get("label") or ""
+        count = item.get("count")
+        share = item.get("share_of_matched") or item.get("share") or ""
+        if not label:
+            continue
+        pretty = format_segment(label) if label and not label.startswith("**") else label
+        mentions = ("1 review" if count == 1 else f"{count} reviews") if count else ""
+        suffix_bits = [b for b in (mentions, share) if b]
+        suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
+        lines.append(f"- **{pretty}**{suffix}")
+    return lines
+
+
+def _unmet_need_lines(payload: dict[str, Any], evidence: dict[str, Any], question: str, topic: str) -> list[str]:
+    lines: list[str] = []
+    seen: set[str] = set()
+    reviews = payload.get("matched_reviews") or []
+    for rev in _filter_reviews_for_question(reviews, question, topic, limit=12):
+        need = str(rev.get("unmet_need") or "").strip()
+        if not need or need.lower() in {"none", "nan"}:
+            continue
+        norm = _norm_text(need)[:100]
+        if norm in seen:
+            continue
+        lines.append(f"- {need.rstrip('.')}.")
+        seen.add(norm)
+        if len(lines) >= 5:
+            break
+
+    if len(lines) < 3:
+        for item in evidence.get("top_unmet_needs") or []:
+            label = str(item.get("label") or "").strip()
+            if not label:
+                continue
+            norm = _norm_text(label)[:100]
+            if norm in seen:
+                continue
+            count = item.get("count")
+            suffix = f" ({count} mentions)" if count else ""
+            lines.append(f"- {label.rstrip('.')}.{suffix}")
+            seen.add(norm)
+            if len(lines) >= 5:
+                break
+    return lines
+
+
+def _focus_area_lines(question: str, topic: str, intent: str, payload: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    seen: set[str] = set()
+    for area in FOCUS_AREA_BY_TOPIC.get(topic, FOCUS_AREA_BY_TOPIC["general"]):
+        norm = _norm_text(area)[:120]
+        if norm in seen:
+            continue
+        prefix = "Opportunity" if intent == "opportunity" else "Direction"
+        lines.append(f"- **{prefix}**: {area}")
+        seen.add(norm)
+        if len(lines) >= 4:
+            break
+
+    for theme in (payload.get("themes") or [])[:6]:
+        name = str(theme.get("theme_name") or "").strip()
+        if not name or is_noisy_theme(name):
+            continue
+        want = str(theme.get("what_users_want") or theme.get("summary") or "").strip()
+        if not want:
+            continue
+        norm = _norm_text(want)[:120]
+        if norm in seen:
+            continue
+        lines.append(f"- **{name}**: {want.rstrip('.')}.")
+        seen.add(norm)
+        if len(lines) >= 5:
+            break
+    return lines
+
+
+def _action_lines(question: str, intent: str, topic: str) -> list[str]:
+    actions = list(actions_for_intent(intent, topic))
+    if not actions:
+        actions = [
+            "Run a journey audit on the flows tied to this question and identify top friction points.",
+            "Design a measurable two-week product experiment targeting the most common review complaint.",
+            "Add lightweight in-product feedback prompts to validate the hypothesis behind this question.",
+        ]
+    return [f"- {a.rstrip('.') }." for a in actions[:5]]
+
+
+def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
+    """Build an 8-section answer tailored to the question. Sections are omitted when unsupported."""
+    topic = detect_topic(question)
+    intent = detect_question_intent(question)
+    evidence = _build_evidence_pack(question, payload, topic, intent)
+
+    summary = _synthesize_summary(
+        question, intent, topic,
+        _collect_review_signals(
+            _filter_reviews_for_question(payload.get("matched_reviews") or [], question, topic),
+            question, topic,
+        ),
+    )
+
+    candidates: list[tuple[str, str]] = []
+    candidates.append(("Summary", summary))
+
+    ev_lines = _evidence_section_lines(evidence)
+    if ev_lines:
+        candidates.append(("Evidence", "\n".join(ev_lines)))
+
+    pain_lines_out = _pain_section_lines(evidence, topic)
+    if pain_lines_out:
+        candidates.append(("Key Pain Points", "\n".join(pain_lines_out)))
+
+    cause_lines = _root_cause_lines(payload, evidence, question, topic)
+    if cause_lines:
+        candidates.append(("Root Causes", "\n".join(cause_lines)))
+
+    seg_lines = _segment_lines(evidence)
+    if seg_lines:
+        candidates.append(("Affected User Segments", "\n".join(seg_lines)))
+
+    need_lines = _unmet_need_lines(payload, evidence, question, topic)
+    if need_lines:
+        candidates.append(("Unmet Needs", "\n".join(need_lines)))
+
+    focus_lines = _focus_area_lines(question, topic, intent, payload)
+    if focus_lines:
+        candidates.append(("Product Focus Areas", "\n".join(focus_lines)))
+
+    action_lines = _action_lines(question, intent, topic)
+    if action_lines:
+        candidates.append(("Recommended Actions", "\n".join(action_lines)))
+
+    # Intent-aware section filter — keep only what serves the user's question.
+    preferred = set(INTENT_SECTIONS.get(intent, INTENT_SECTIONS["general"]))
+    preferred.update(REQUIRED_SECTIONS)
+    selected = [(name, body) for name, body in candidates if name in preferred]
+    if len(selected) < 3:
+        selected = candidates  # fall back to everything we have
+
+    parts = [f"## {name}\n\n{body}" for name, body in selected if body]
+    return _strip_ids_and_quotes("\n\n".join(parts))
 
 
 def _is_canned_fallback_answer(text: str) -> bool:
@@ -1058,46 +1526,27 @@ def _is_canned_fallback_answer(text: str) -> bool:
     return any(m.lower() in lower for m in markers)
 
 
-def _answer_has_off_topic_pains(question: str, answer: str) -> bool:
-    """Reject answers that mention pain areas unrelated to the question topic."""
-    topic = detect_topic(question)
+def _ensure_required_sections(answer: str, question: str, payload: dict[str, Any]) -> str:
+    """Backfill any missing required section from the data-grounded fallback."""
     sections = _split_into_sections(answer)
-    pain_body = (sections.get("Key pain points") or "").lower()
-    summary = (sections.get("Summary") or "").lower()
-    combined = pain_body + " " + summary
-
-    off_topic_markers: dict[str, tuple[str, ...]] = {
-        "discovery": (
-            "pricing & value", "premium pricing", "family plan", "student verification",
-            "churn signals", "ads & free tier",
-        ),
-        "repetition": ("pricing & value", "premium pricing", "ads & free tier"),
-        "pricing": (),
-        "ui": ("pricing & value", "ads & free tier"),
-        "performance": ("pricing & value",),
-        "social": ("pricing & value",),
-        "audio": ("pricing & value", "ads & free tier"),
-    }
-    for marker in off_topic_markers.get(topic, ()):
-        if marker in combined:
-            return True
-    return False
-
-
-def _ensure_four_sections(answer: str, question: str, payload: dict[str, Any]) -> str:
-    """Fill any missing sections from a data-grounded fallback."""
-    sections = _split_into_sections(answer)
+    if all(name in sections for name in REQUIRED_SECTIONS) and len(sections) >= 2:
+        return _enforce_section_order(answer)
     fallback = _split_into_sections(_build_data_grounded_answer(question, payload))
     for name in SECTION_ORDER:
-        if not sections.get(name) and fallback.get(name):
+        if name not in sections and fallback.get(name):
             sections[name] = fallback[name]
-    parts = [f"**{name}**\n\n{sections[name].strip()}" for name in SECTION_ORDER if sections.get(name)]
+    parts = [f"## {name}\n\n{sections[name].strip()}" for name in SECTION_ORDER if sections.get(name)]
     return "\n\n".join(parts) if parts else _build_data_grounded_answer(question, payload)
 
 
-def _compact_grounding_payload(payload: dict[str, Any], limit: int = 10) -> str:
+def _compact_grounding_payload(
+    payload: dict[str, Any],
+    evidence: dict[str, Any] | None = None,
+    limit: int = 10,
+) -> str:
     """Smaller context for a fast Groq retry when the full payload times out."""
     slim = {
+        "evidence": evidence or {},
         "matched_reviews": [
             {
                 "source": r.get("source"),
@@ -1118,80 +1567,97 @@ def _compact_grounding_payload(payload: dict[str, Any], limit: int = 10) -> str:
             if not is_noisy_theme(str(t.get("theme_name") or ""))
         ],
     }
-    return json.dumps(slim, ensure_ascii=False)
+    return json.dumps(slim, ensure_ascii=False, default=str)
+
+
+_INTENT_GUIDANCE: dict[str, str] = {
+    "why_cause": (
+        "Question type: WHY/CAUSE — explain the root causes behind the pain. "
+        "Lead with Summary, then Evidence, then Key Pain Points, Root Causes, "
+        "and Recommended Actions. Skip sections that the data does not back."
+    ),
+    "opportunity": (
+        "Question type: OPPORTUNITY — surface product directions to invest in. "
+        "Lead with Summary, then Evidence, then Unmet Needs, Product Focus Areas, "
+        "and Recommended Actions. Skip Pain Points unless directly relevant."
+    ),
+    "pain_list": (
+        "Question type: PAIN LIST — describe the concrete complaints. "
+        "Lead with Summary, then Evidence, then Key Pain Points and Affected "
+        "User Segments, then Recommended Actions."
+    ),
+    "listening_goals": (
+        "Question type: LISTENING GOALS — describe what users are trying to do. "
+        "Lead with Summary, Evidence, Unmet Needs, Affected User Segments, and "
+        "Product Focus Areas."
+    ),
+    "segment_question": (
+        "Question type: SEGMENT — describe who is impacted. Lead with Summary, "
+        "Evidence, Affected User Segments, then Key Pain Points and Recommended Actions."
+    ),
+    "general": (
+        "Question type: GENERAL — answer directly and include only the sections "
+        "supported by the supplied review data."
+    ),
+}
 
 
 def _build_groq_messages(
     question: str,
+    payload: dict[str, Any],
     grounding: str,
     history: list[dict],
     *,
+    evidence: dict[str, Any] | None = None,
     compact: bool = False,
 ) -> list[dict]:
-    prefix = "COMPACT CONTEXT — still answer the exact question with all 4 sections.\n\n" if compact else ""
     intent = detect_question_intent(question)
-    intent_note = (
-        f"QUESTION TYPE: {intent.upper()} — "
-        + (
-            "explain root causes and barriers."
-            if intent == "why_cause"
-            else "highlight product opportunities and improvement bets."
-            if intent == "opportunity"
-            else "answer the specific question directly."
-        )
-        + "\n\n"
+    topic = detect_topic(question)
+    guidance = _INTENT_GUIDANCE.get(intent, _INTENT_GUIDANCE["general"])
+
+    if evidence is None:
+        evidence = _build_evidence_pack(question, payload, topic, intent)
+
+    evidence_block = json.dumps(evidence, ensure_ascii=False, default=str)
+    prefix = (
+        "COMPACT CONTEXT — same rules: include only sections the data supports.\n\n"
+        if compact else ""
     )
+
+    user_content = (
+        f"QUESTION (answer this exactly — never give a generic overview):\n{question}\n\n"
+        f"{guidance}\n\n"
+        "Detected topic for filtering pain categories: "
+        f"`{topic}` (use this hint, do not mention it).\n\n"
+        "EVIDENCE (use ONLY these numbers — never invent percentages):\n"
+        f"{evidence_block}\n\n"
+        f"{prefix}REVIEW CONTEXT:\n{grounding}\n\n"
+        "Reminder: output the markdown sections only, omit sections without "
+        "supporting data, and never repeat the same point across sections."
+    )
+
     messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
     messages.extend(history)
-    messages.append({
-        "role": "user",
-        "content": (
-            f"QUESTION (answer this exactly — do not give a generic overview):\n{question}\n\n"
-            f"{intent_note}"
-            "Use the review context below. Do NOT cite numbers, counts, or verbatim quotes. "
-            "Follow the required 4-section structure exactly.\n\n"
-            f"{prefix}CONTEXT:\n{grounding}"
-        ),
-    })
+    messages.append({"role": "user", "content": user_content})
     return messages
 
 
-def _answer_matches_intent(question: str, answer: str) -> bool:
-    """Reject Groq answers that use the wrong framing for the question type."""
-    intent = detect_question_intent(question)
-    summary = (_split_into_sections(answer).get("Summary") or "").lower()
-    if intent == "opportunity":
-        wrong = (
-            "users struggle to discover",
-            "struggle to discover new music because",
-            "recommendations stay anchored to familiar",
-        )
-        if any(p in summary for p in wrong):
-            return False
-    if intent == "why_cause":
-        wrong = (
-            "biggest opportunities to improve",
-            "the biggest opportunities",
-            "high-potential bets include",
-            "product opportunity to deliver",
-        )
-        if any(p in summary for p in wrong):
-            return False
-    return True
-
-
 def _accept_groq_answer(raw: str, question: str, payload: dict[str, Any]) -> str | None:
-    """Accept Groq output when structurally valid — same bar as local dev."""
-    cleaned = _strip_numbers_and_quotes(raw)
+    """Accept Groq output when it has a Summary plus at least one supporting section."""
+    cleaned = _strip_ids_and_quotes(raw)
     normalized = _enforce_section_order(cleaned)
     if len(normalized.strip()) < 80:
         return None
     if _is_canned_fallback_answer(normalized):
         return None
-    if not _has_required_sections(normalized):
-        normalized = _ensure_four_sections(normalized, question, payload)
-    if not _has_required_sections(normalized):
-        return None
+    sections = _split_into_sections(normalized)
+    if "Summary" not in sections:
+        normalized = _ensure_required_sections(normalized, question, payload)
+        sections = _split_into_sections(normalized)
+        if "Summary" not in sections:
+            return None
+    if len([k for k, v in sections.items() if v]) < 2:
+        normalized = _ensure_required_sections(normalized, question, payload)
     return normalized
 
 
@@ -1208,13 +1674,20 @@ def _try_groq_answer(
         logger.warning("GROQ_API_KEY not set — chat will use review-grounded fallback")
         return None
 
+    topic = detect_topic(question)
+    intent = detect_question_intent(question)
+    evidence = _build_evidence_pack(question, payload, topic, intent)
+
     trimmed = grounding[:6000] if len(grounding) > 6000 else grounding
     attempts = [
         ("full", trimmed, False),
-        ("compact", _compact_grounding_payload(payload), True),
+        ("compact", _compact_grounding_payload(payload, evidence=evidence), True),
     ]
     for label, ctx, compact in attempts:
-        messages = _build_groq_messages(question, ctx, history, compact=compact)
+        messages = _build_groq_messages(
+            question, payload, ctx, history,
+            evidence=evidence, compact=compact,
+        )
         raw = _try_groq(messages, api_key=key)
         if not raw:
             logger.info("Groq %s attempt returned nothing for %r", label, question[:60])
@@ -1276,10 +1749,9 @@ def _try_groq(messages: list[dict], api_key: str = "") -> str | None:
     return None
 
 
-def _has_required_sections(text: str) -> bool:
-    sections = _split_into_sections(text)
-    must_have = {"Summary", "Key pain points", "Product focus areas", "Recommended actions"}
-    return must_have.issubset(sections.keys())
+def _has_summary_only(text: str) -> bool:
+    """Backwards-compat helper — Summary is the only hard requirement."""
+    return "Summary" in _split_into_sections(text)
 
 
 # ---------------------------------------------------------------------------
@@ -1296,10 +1768,8 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
         logger.exception("context build failed: %s", exc)
         return ChatResponse(
             answer=(
-                "**Summary**\n\nThe review dataset is loading. Please try again in a moment.\n\n"
-                "**Key pain points**\n\nUnavailable until data loads.\n\n"
-                "**Product focus areas**\n\nUnavailable until data loads.\n\n"
-                "**Recommended actions**\n\n- Please retry your question shortly."
+                "## Summary\n\nThe review dataset is loading. Please retry your question in a moment.\n\n"
+                "## Recommended Actions\n\n- Refresh and resend the same question once the dashboard finishes loading."
             ),
             grounding_size_chars=0,
             matched_reviews=0,
@@ -1317,7 +1787,8 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
             logger.info("chat answer from review-grounded fallback for %r", req.question[:80])
             answer = _build_data_grounded_answer(req.question, payload)
 
-    answer = _strip_numbers_and_quotes(answer)
+    answer = _ensure_required_sections(answer, req.question, payload)
+    answer = _strip_ids_and_quotes(answer)
 
     return ChatResponse(
         answer=answer,
