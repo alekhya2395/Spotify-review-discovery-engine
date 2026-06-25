@@ -82,7 +82,7 @@ export default function Page() {
           <strong>Backend unreachable.</strong> {healthErr}
           <br />
           On Vercel, set <code>BACKEND_URL</code> to your Railway URL (e.g.{" "}
-          <code>https://spotify-review-discovery-engine-production.up.railway.app</code>) and redeploy.
+          <code>https://spotify-api-production-73c6.up.railway.app</code>) and redeploy.
         </div>
       )}
 

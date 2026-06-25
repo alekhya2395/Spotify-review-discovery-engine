@@ -19,11 +19,12 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeou
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+from groq_env import groq_api_key, groq_chat_model  # noqa: E402
 from rag import build_review_context  # noqa: E402
 from format_labels import (  # noqa: E402
     FOCUS_AREA_BY_TOPIC,
@@ -43,9 +44,13 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = groq_chat_model()
 GROQ_FALLBACK_MODEL = os.getenv("GROQ_CHAT_FALLBACK_MODEL", "llama-3.1-8b-instant")
 GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "45"))
+GROQ_TEMPERATURE = float(os.getenv("GROQ_CHAT_TEMPERATURE", "0"))
+
+# Set CHAT_STABLE_MODE=true to skip Groq and always use deterministic review-grounded answers.
+CHAT_STABLE_MODE = os.getenv("CHAT_STABLE_MODE", "false").lower() in ("1", "true", "yes")
 
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_CHARS = 600
@@ -1195,9 +1200,11 @@ def _try_groq_answer(
     payload: dict[str, Any],
     grounding: str,
     history: list[dict],
+    api_key: str = "",
 ) -> str | None:
     """Try Groq with full then compact context — returns answer or None."""
-    if not GROQ_API_KEY:
+    key = (api_key or GROQ_API_KEY).strip()
+    if not key:
         logger.warning("GROQ_API_KEY not set — chat will use review-grounded fallback")
         return None
 
@@ -1208,7 +1215,7 @@ def _try_groq_answer(
     ]
     for label, ctx, compact in attempts:
         messages = _build_groq_messages(question, ctx, history, compact=compact)
-        raw = _try_groq(messages)
+        raw = _try_groq(messages, api_key=key)
         if not raw:
             logger.info("Groq %s attempt returned nothing for %r", label, question[:60])
             continue
@@ -1231,7 +1238,7 @@ def _groq_call(client, model: str, messages: list[dict]) -> str:
             model=model,
             messages=messages,
             max_tokens=900,
-            temperature=0.3,
+            temperature=GROQ_TEMPERATURE,
         )
         return (resp.choices[0].message.content or "").strip()
 
@@ -1243,15 +1250,16 @@ def _groq_call(client, model: str, messages: list[dict]) -> str:
             raise RuntimeError("groq_timeout") from exc
 
 
-def _try_groq(messages: list[dict]) -> str | None:
-    if not GROQ_API_KEY:
+def _try_groq(messages: list[dict], api_key: str = "") -> str | None:
+    key = (api_key or GROQ_API_KEY).strip()
+    if not key:
         return None
     try:
         from groq import Groq
     except ImportError:
         return None
 
-    client = Groq(api_key=GROQ_API_KEY, timeout=GROQ_TIMEOUT_SECONDS + 3)
+    client = Groq(api_key=key, timeout=GROQ_TIMEOUT_SECONDS + 3)
 
     seen: set[str] = set()
     for model in [GROQ_MODEL, GROQ_FALLBACK_MODEL]:
@@ -1280,7 +1288,8 @@ def _has_required_sections(text: str) -> bool:
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+def chat(req: ChatRequest, request: Request) -> ChatResponse:
+    groq_key = groq_api_key(request)
     try:
         payload, grounding, meta = build_review_context(req.question)
     except Exception as exc:
@@ -1298,11 +1307,15 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     history = _trim_history(req.history, req.question)
 
-    # Groq first (matches local dev). Review-grounded fallback only when Groq unavailable.
-    answer = _try_groq_answer(req.question, payload, grounding, history)
-    if not answer:
-        logger.info("chat answer from review-grounded fallback for %r", req.question[:80])
+    if CHAT_STABLE_MODE and not groq_key:
         answer = _build_data_grounded_answer(req.question, payload)
+    else:
+        answer = _try_groq_answer(
+            req.question, payload, grounding, history=[], api_key=groq_key
+        )
+        if not answer:
+            logger.info("chat answer from review-grounded fallback for %r", req.question[:80])
+            answer = _build_data_grounded_answer(req.question, payload)
 
     answer = _strip_numbers_and_quotes(answer)
 
@@ -1315,6 +1328,6 @@ def chat(req: ChatRequest) -> ChatResponse:
 
 
 @router.post("/ask", response_model=ChatResponse)
-def ask(req: ChatRequest) -> ChatResponse:
+def ask(req: ChatRequest, request: Request) -> ChatResponse:
     """Alias for /chat — used by the discovery search bar."""
-    return chat(req)
+    return chat(req, request)

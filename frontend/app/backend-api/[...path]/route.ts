@@ -36,6 +36,9 @@ async function proxy(req: NextRequest, pathSegments: string[]) {
   const contentType = req.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
 
+  const groqKey = (process.env.GROQ_API_KEY || "").trim();
+  if (groqKey) headers.set("x-groq-api-key", groqKey);
+
   const init: RequestInit = {
     method: req.method,
     headers,
@@ -48,9 +51,19 @@ async function proxy(req: NextRequest, pathSegments: string[]) {
 
   try {
     const upstream = await fetch(target, init);
+    const upstreamType = upstream.headers.get("content-type") || "";
+    const isHealth = subpath === "health";
+
+    if (isHealth && upstream.ok && upstreamType.includes("application/json")) {
+      const payload = await upstream.json();
+      if (groqKey && payload?.data && typeof payload.data === "object") {
+        payload.data.groq_configured = true;
+      }
+      return NextResponse.json(payload, { status: upstream.status });
+    }
+
     const body = await upstream.arrayBuffer();
     const response = new NextResponse(body, { status: upstream.status });
-    const upstreamType = upstream.headers.get("content-type");
     if (upstreamType) response.headers.set("content-type", upstreamType);
     return response;
   } catch {

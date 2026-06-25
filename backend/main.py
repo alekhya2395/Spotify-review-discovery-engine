@@ -13,9 +13,11 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+from groq_env import groq_api_key, groq_chat_model  # noqa: E402
 
 _BACKEND = Path(__file__).resolve().parent
 _ROOT = _BACKEND.parent
@@ -59,10 +61,10 @@ def root() -> JSONResponse:
 
 
 @app.get("/api/health")
-def health() -> dict:
+def health(request: Request) -> dict:
     summary = data_summary()
-    summary["groq_configured"] = bool(os.getenv("GROQ_API_KEY", "").strip())
-    summary["groq_model"] = os.getenv("GROQ_CHAT_MODEL", "llama-3.1-8b-instant")
+    summary["groq_configured"] = bool(groq_api_key(request))
+    summary["groq_model"] = groq_chat_model()
     return {"status": "ok", "data": summary}
 
 
