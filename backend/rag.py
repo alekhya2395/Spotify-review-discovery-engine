@@ -197,8 +197,8 @@ def _stats_snapshot(df: pd.DataFrame) -> dict[str, Any]:
     if "listening_style" in df.columns:
         out["segments"] = df["listening_style"].value_counts().head(12).to_dict()
     if "unmet_need" in df.columns:
-        needs = df["unmet_need"].dropna().astype(str)
-        needs = needs[~needs.str.lower().isin({"none", "nan", ""})]
+        needs = df["unmet_need"].dropna().astype(str).str.strip()
+        needs = needs[~needs.str.lower().isin({"none", "nan", "n/a", "na", "null", "unknown", ""})]
         if not needs.empty:
             out["top_unmet_needs"] = needs.value_counts().head(12).to_dict()
     if "listening_style" in df.columns and "is_discovery_related" in df.columns:

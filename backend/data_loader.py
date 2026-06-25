@@ -2,10 +2,15 @@
 
 import json
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
+
+sys.path.append(str(Path(__file__).resolve().parent))
+
+from unmet_need_inference import fill_unmet_needs  # noqa: E402
 
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent / "data")).resolve()
 
@@ -46,6 +51,8 @@ def _normalize(df: pd.DataFrame) -> pd.DataFrame:
     for col in ("is_discovery_related", "is_repetition_related"):
         if col in out.columns:
             out[col] = out[col].fillna(False).astype(bool)
+
+    out = fill_unmet_needs(out)
 
     return out
 
