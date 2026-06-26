@@ -83,8 +83,24 @@ export default function Page() {
         <div className="mx-4 md:mx-6 mt-4 bg-amber-900/30 border border-amber-700 text-amber-200 rounded-lg p-3 text-sm">
           <strong>Backend unreachable.</strong> {healthErr}
           <br />
-          On Vercel, set <code>BACKEND_URL</code> to your Railway URL (e.g.{" "}
-          <code>https://spotify-api-production-73c6.up.railway.app</code>) and redeploy.
+          {typeof window !== "undefined" && window.location.hostname === "localhost" ? (
+            <>
+              Local dev: start the API with{" "}
+              <code className="bg-app-bg px-1 rounded">python run_backend.py</code> (port 8000), then
+              set <code className="bg-app-bg px-1 rounded">BACKEND_URL=http://127.0.0.1:8000</code> in{" "}
+              <code className="bg-app-bg px-1 rounded">frontend/.env.local</code> and restart{" "}
+              <code className="bg-app-bg px-1 rounded">npm run dev</code>.
+            </>
+          ) : (
+            <>
+              On Vercel, set <code className="bg-app-bg px-1 rounded">BACKEND_URL</code> to your Railway URL
+              (e.g.{" "}
+              <code className="bg-app-bg px-1 rounded">
+                https://spotify-api-production-73c6.up.railway.app
+              </code>
+              ) and redeploy.
+            </>
+          )}
         </div>
       )}
 

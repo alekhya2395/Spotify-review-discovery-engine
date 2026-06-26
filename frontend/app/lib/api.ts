@@ -17,7 +17,7 @@ export function apiRoot(): string {
     if (base) return `${base}/api`;
   }
 
-  return "http://127.0.0.1:8001/api";
+  return "http://127.0.0.1:8000/api";
 }
 
 async function jget<T>(path: string): Promise<T> {

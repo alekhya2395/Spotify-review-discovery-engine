@@ -8,7 +8,7 @@ function backendOrigin(): string | null {
   const raw = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "").trim();
   if (!raw) {
     if (process.env.VERCEL) return null;
-    return "http://127.0.0.1:8001";
+    return "http://127.0.0.1:8000";
   }
   let url = raw.replace(/\/api\/?$/i, "").replace(/\/$/, "");
   if (!/^https?:\/\//i.test(url)) {
