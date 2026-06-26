@@ -34,6 +34,11 @@ from rag import build_review_context  # noqa: E402
 from discovery_insights import compute_discovery_insights  # noqa: E402
 from root_causes import compute_root_causes  # noqa: E402
 from user_segments import compute_user_segments  # noqa: E402
+from unmet_need_inference import (  # noqa: E402
+    DISCOVERY_FOCUSED_NEEDS,
+    NON_UNMET_NEED_LABELS,
+    strategic_rewrite,
+)
 from format_labels import (  # noqa: E402
     FOCUS_AREA_BY_TOPIC,
     PAIN_INSIGHT,
@@ -1793,55 +1798,81 @@ def _segment_lines(evidence: dict[str, Any]) -> list[str]:
     return lines
 
 
-def _unmet_need_lines(payload: dict[str, Any], evidence: dict[str, Any], question: str, topic: str) -> list[str]:
-    lines: list[str] = []
-    seen: set[str] = set()
+_GENERIC_NEED = "Need a more reliable music experience"
 
-    # First, surface any grouped discovery unmet-need findings (counts + percentages).
+
+def _unmet_need_lines(payload: dict[str, Any], evidence: dict[str, Any], question: str, topic: str) -> list[str]:
+    """Strategic unmet needs — discovery-focused first, deduped canonically.
+
+    Pulls candidates from (a) the grouped discovery_unmet_needs evidence,
+    (b) matched-review unmet_need values, and (c) the top_unmet_needs roll-up.
+    Each candidate is canonicalised with ``strategic_rewrite`` so semantic
+    siblings collapse to one bullet, and discovery-related needs are sorted
+    first when the question touches discovery / repetition / recommendations.
+    """
+    q_lower = question.lower()
+    discovery_question = topic in {"discovery", "recommendations", "listening_behavior"} or any(
+        k in q_lower for k in (
+            "discover", "discovery", "explore", "exploration", "new music",
+            "new artist", "fresh", "diverse", "recommend", "personali",
+            "shuffle", "autoplay", "repeat", "repetition",
+        )
+    )
+
+    candidates: dict[str, dict[str, Any]] = {}
+
+    def _add(label_in: str, count: int | None = None, share: str | None = None) -> None:
+        label = strategic_rewrite(label_in)
+        if not label or label == _GENERIC_NEED or label in NON_UNMET_NEED_LABELS:
+            return
+        bucket = candidates.setdefault(label, {"count": 0, "share": "", "label": label, "locked": False})
+        if share and not bucket["share"]:
+            bucket["share"] = share
+            bucket["count"] = int(count or 0)
+            bucket["locked"] = True
+            return
+        if not bucket["locked"] and count:
+            bucket["count"] += int(count)
+
     discovery_block = (evidence.get("discovery_insights") or {}).get("discovery_unmet_needs") or {}
-    for group in (discovery_block.get("groups") or [])[:4]:
+    for group in discovery_block.get("groups") or []:
         label = str(group.get("label") or "").strip()
-        if not label:
+        if not label or label.startswith("Other"):
             continue
-        norm = _norm_text(label)[:100]
-        if norm in seen:
-            continue
-        count = group.get("count")
-        share = group.get("share_of_pool") or group.get("share_of_corpus") or ""
-        suffix_bits = [b for b in (_mentions(count), share) if b]
-        suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
-        lines.append(f"- **{label}**{suffix}.")
-        seen.add(norm)
-        if len(lines) >= 5:
-            break
+        _add(
+            label,
+            count=group.get("count"),
+            share=group.get("share_of_pool") or group.get("share_of_corpus"),
+        )
 
     reviews = payload.get("matched_reviews") or []
-    for rev in _filter_reviews_for_question(reviews, question, topic, limit=12):
-        if len(lines) >= 5:
-            break
+    for rev in _filter_reviews_for_question(reviews, question, topic, limit=30):
         need = str(rev.get("unmet_need") or "").strip()
         if not need or need.lower() in {"none", "nan"}:
             continue
-        norm = _norm_text(need)[:100]
-        if norm in seen:
-            continue
-        lines.append(f"- {need.rstrip('.')}.")
-        seen.add(norm)
+        _add(need, count=1)
 
-    if len(lines) < 3:
-        for item in evidence.get("top_unmet_needs") or []:
-            label = str(item.get("label") or "").strip()
-            if not label:
-                continue
-            norm = _norm_text(label)[:100]
-            if norm in seen:
-                continue
-            count = item.get("count")
-            suffix = f" ({count} mentions)" if count else ""
-            lines.append(f"- {label.rstrip('.')}.{suffix}")
-            seen.add(norm)
-            if len(lines) >= 5:
-                break
+    for item in evidence.get("top_unmet_needs") or []:
+        label = str(item.get("label") or "").strip()
+        if not label:
+            continue
+        _add(label, count=item.get("count"))
+
+    if not candidates:
+        return []
+
+    def _sort_key(b: dict[str, Any]) -> tuple[int, int]:
+        discovery_priority = 0 if (discovery_question and b["label"] in DISCOVERY_FOCUSED_NEEDS) else 1
+        return (discovery_priority, -(b["count"] or 0))
+
+    ranked = sorted(candidates.values(), key=_sort_key)
+
+    lines: list[str] = []
+    for b in ranked[:5]:
+        share = b.get("share") or ""
+        suffix_bits = [bit for bit in (_mentions(b["count"]), share) if bit]
+        suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
+        lines.append(f"- {b['label'].rstrip('.')}.{suffix}")
     return lines
 
 

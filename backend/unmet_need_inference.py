@@ -158,6 +158,264 @@ _PAIN_CATEGORY_DEFAULTS: dict[str, str] = {
 _DEFAULT_NEED = "Need a more reliable music experience"
 
 
+# ---------------------------------------------------------------------------
+# Strategic rewrite — convert feature-oriented phrases to user motivations.
+# Runs AFTER initial extraction so both Phase-2 LLM outputs and inferred
+# phrases get reframed (e.g., "Need offline mode" -> "Need uninterrupted
+# listening when offline"). First match wins.
+# ---------------------------------------------------------------------------
+
+_STRATEGIC_REWRITE_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
+    # ----- Discovery & exploration -----
+    (re.compile(r"\baccess\s*(?:to\s+)?'?what.?s\s+new'?\s*feature\b", re.I),
+     "Need easier visibility into new releases"),
+    (re.compile(r"\brestore\s*'?(?:new\s+)?releases'?\s+feature\b", re.I),
+     "Need easier visibility into new releases"),
+    (re.compile(r"\bnew\s+album\s+releases?\b", re.I),
+     "Need easier visibility into new releases"),
+    (re.compile(r"\bdiscover\s+music\s+from\s+\w+(?:\s+and\s+\w+)*", re.I),
+     "Need exposure to music beyond the default catalog"),
+    (re.compile(r"\bmore\s+songs\s+like\b", re.I),
+     "Need exposure to similar but unfamiliar music"),
+    (re.compile(r"\b(?:method|way)\s+(?:for|to)\s+find(?:ing)?\s+new\s+music\b", re.I),
+     "Need guided discovery beyond existing listening habits"),
+    (re.compile(r"^need\s+(?:music\s+)?discovery\.?$", re.I),
+     "Need easier music discovery"),
+    (re.compile(r"\bartist\s+discovery\b", re.I),
+     "Need easier artist discovery"),
+    (re.compile(r"\bdiscover(?:y)?\s+of\s+new\s+music\b", re.I),
+     "Need guided discovery beyond existing listening habits"),
+    (re.compile(r"\balgorithm[-\s]*free\s+music\s+discovery\b", re.I),
+     "Need confidence when exploring new music"),
+    (re.compile(r"\bsimilar\s+music\s+recommend", re.I),
+     "Need recommendations balancing familiarity and novelty"),
+    (re.compile(r"\bimprove(?:d)?\s+music\s+discovery\b", re.I),
+     "Need easier music discovery"),
+    (re.compile(r"\bimproved\s+discover\s*weekly\b", re.I),
+     "Need fresher and more accurate Discover Weekly"),
+    (re.compile(r"\bautomagic\s+playlist\b", re.I),
+     "Need personalized playlists that surface fresh music"),
+    (re.compile(r"\bimproved\s+playlist\s+curation\b", re.I),
+     "Need stronger curated discovery playlists"),
+    (re.compile(r"^need\s+curated\s+playlists?\.?$", re.I),
+     "Need stronger curated discovery playlists"),
+    (re.compile(r"^need\s+more\s+(?:song|music)\s+recommendations?\.?$", re.I),
+     "Need exposure to more relevant music"),
+    (re.compile(r"\bmore\s+personalized\s+recommendations?\b", re.I),
+     "Need better personalization"),
+    (re.compile(r"\bmore\s+accurate\s+recommendations?\b", re.I),
+     "Need fresher and more accurate recommendations"),
+    (re.compile(r"\b(?:cantonese|spanish|french|german|hindi|tamil|telugu|korean|japanese|portuguese|mandarin|chinese|arabic|punjabi|bengali|urdu|swahili|afrikaans|regional|local|country|language)\b.*\b(?:music|discover|recommend|playlist|songs?)\b", re.I),
+     "Need regional and language-specific discovery"),
+    (re.compile(r"\b(?:underground|emerging|niche|unfamiliar|indie)\b.*\b(?:music|artist|song|genre)\b", re.I),
+     "Need exposure to unfamiliar genres"),
+    (re.compile(r"\bmore\s+diverse\s+recommendations?\b", re.I),
+     "Need more diverse recommendations"),
+    (re.compile(r"\bavoid\s+repetitive\s+songs?\b", re.I),
+     "Need more diverse recommendations"),
+    (re.compile(r"\bkid[-\s]?friendly\b", re.I),
+     "Need safer family-oriented listening experiences"),
+
+    # ----- Ads -----
+    (re.compile(
+        r"\b(?:remove\s+ads(?:\s+for\s+free\s+users)?|reduce\s+ads|reduced\s+ads|"
+        r"fewer\s+ads|less\s+ads|less\s+frequent\s+ads|no\s+ads|"
+        r"ad[-\s]?free(?:\s+experience|\s+listening)?)\b",
+        re.I,
+    ), "Need a less interruptive free-tier experience"),
+    (re.compile(r"\b(?:choose|select|pick)\s+songs?\s+without\s+ads\b", re.I),
+     "Need a less interruptive free-tier experience"),
+
+    # ----- Pricing -----
+    (re.compile(r"\baccess\s+to\s+premium\s+features?\s+without\s+paying\b", re.I),
+     "Need an affordable path to premium-only features"),
+    (re.compile(r"\baffordable\s+pricing\b", re.I),
+     "Need a more affordable plan that matches value"),
+    (re.compile(r"\bfree\s+version\b", re.I),
+     "Need a usable free experience without aggressive upsell"),
+    (re.compile(r"\bmore\s+skips\b", re.I),
+     "Need a less restrictive free-tier playback experience"),
+
+    # ----- Performance / stability -----
+    (re.compile(
+        r"\b(?:stable\s+app|more\s+stable\s+app|app\s+to\s+not\s+crash|"
+        r"fix\s+app\s+crashes?|improve\s+app\s+performance|fix\s+bugs?|"
+        r"fix\s+freezing|fix\s+lag)\b",
+        re.I,
+    ), "Need a crash-free app experience"),
+
+    # ----- Cross-device / Connect / Cast -----
+    (re.compile(r"\b(?:google\s*cast|spotify\s*connect|chromecast|airplay)\b", re.I),
+     "Need reliable cross-device playback control"),
+
+    # ----- Offline -----
+    (re.compile(r"\boffline\s+(?:mode|listening|download|support|playback)?\b", re.I),
+     "Need uninterrupted listening when offline"),
+
+    # ----- Late-pass cleanups for feature-specific phrasing -----
+    (re.compile(r"\b(?:premium\s+should\s+be\s+free|free\s+premium|premium\s+free)\b", re.I),
+     "Need an affordable path to premium-only features"),
+    (re.compile(r"\b(?:skip\s+ads|more\s+skip)\b", re.I),
+     "Need a less restrictive free-tier playback experience"),
+    (re.compile(r"\bno\s+price\s+increase", re.I),
+     "Need a more affordable plan that matches value"),
+    (re.compile(r"\baffordable\s+premium\s+option\b", re.I),
+     "Need a more affordable plan that matches value"),
+    (re.compile(r"\brestore\s*'?[\w\s]+'?\s*(?:category|feature|section|tab)\b", re.I),
+     "Need stable, predictable UI changes"),
+    (re.compile(r"^need\s+(?:more\s+)?music\s+recommendations?\.?$", re.I),
+     "Need exposure to more relevant music"),
+    (re.compile(
+        r"\bmore\s+(?:[a-z]+(?:[-/][a-z]+)?\s+)?(?:music|songs?|artists?)\s+"
+        r"(?:in|on)\s+discover\s*weekly\b",
+        re.I,
+    ), "Need broader genre coverage in personalized playlists"),
+    (re.compile(r"\bability\s+to\s+personalize\s+home\s+screen\b", re.I),
+     "Need a more personalized home experience"),
+    (re.compile(r"\bability\s+to\s+(?:add|remove)\s+(?:missing\s+)?songs?\s+to\s+playlists?\b", re.I),
+     "Need control over what's surfaced in personalized playlists"),
+)
+
+# Canonical-form mapping for hard dedup. After strategic_rewrite the phrase is
+# usually one of these strategic forms; near-duplicates collapse to the same
+# bucket so downstream counting and ranking treat them as one.
+_CANONICAL_NEEDS: dict[str, str] = {
+    # Discovery
+    "need easier music discovery": "Need easier music discovery",
+    "need easier discovery": "Need easier music discovery",
+    "need simpler discovery": "Need easier music discovery",
+    "need better discovery": "Need easier music discovery",
+    "need guided music discovery": "Need guided discovery beyond existing listening habits",
+    "need guided discovery beyond existing listening habits": "Need guided discovery beyond existing listening habits",
+    "need easier artist discovery": "Need easier artist discovery",
+    "need artist discovery": "Need easier artist discovery",
+    "need easier visibility into new releases": "Need easier visibility into new releases",
+    "need exposure to unfamiliar genres": "Need exposure to unfamiliar genres",
+    "need exposure to similar but unfamiliar music": "Need exposure to similar but unfamiliar music",
+    "need exposure to more relevant music": "Need exposure to more relevant music",
+    "need exposure to music beyond the default catalog": "Need exposure to music beyond the default catalog",
+    "need confidence when exploring new music": "Need confidence when exploring new music",
+    "need recommendations balancing familiarity and novelty": "Need recommendations balancing familiarity and novelty",
+    "need more diverse recommendations": "Need more diverse recommendations",
+    "need stronger curated discovery playlists": "Need stronger curated discovery playlists",
+    "need fresher and more accurate recommendations": "Need fresher and more accurate recommendations",
+    "need fresher and more accurate discover weekly": "Need fresher and more accurate Discover Weekly",
+    "need better personalization": "Need better personalization",
+    "need more personalized recommendations": "Need better personalization",
+    "need personalized playlists that surface fresh music": "Need personalized playlists that surface fresh music",
+    "need regional and language-specific discovery": "Need regional and language-specific discovery",
+    "need broader genre coverage in personalized playlists": "Need broader genre coverage in personalized playlists",
+    "need control over what's surfaced in personalized playlists": "Need control over what's surfaced in personalized playlists",
+    "need a more personalized home experience": "Need a more personalized home experience",
+    "need dedicated discovery surfaces": "Need a dedicated discovery surface beyond Discover Weekly",
+    "need a dedicated discovery surface beyond discover weekly": "Need a dedicated discovery surface beyond Discover Weekly",
+    "need mood-aware listening sessions": "Need mood and context-aware recommendations",
+    "need mood- and activity-based listening modes": "Need mood and context-aware recommendations",
+    "need mood and context-aware recommendations": "Need mood and context-aware recommendations",
+
+    # Ads / pricing
+    "need a less interruptive free-tier experience": "Need a less interruptive free-tier experience",
+    "need an ad-free listening option without paying full price": "Need a less interruptive free-tier experience",
+    "need fewer ads": "Need a less interruptive free-tier experience",
+    "need no ads": "Need a less interruptive free-tier experience",
+    "need a more affordable plan that matches value": "Need a more affordable plan that matches value",
+    "need clearer value from premium": "Need clearer value from Premium",
+    "need an affordable path to premium-only features": "Need an affordable path to premium-only features",
+    "need a usable free experience without aggressive upsell": "Need a usable free experience without aggressive upsell",
+    "need a less restrictive free-tier playback experience": "Need a less restrictive free-tier playback experience",
+    "need simpler family and student plan policies": "Need simpler family and student plan policies",
+
+    # Performance / reliability
+    "need a crash-free app experience": "Need a crash-free app experience",
+    "need a stable, fast app experience": "Need a crash-free app experience",
+    "need a faster, responsive app": "Need a faster, responsive app",
+    "need reliable wireless audio playback": "Need reliable wireless audio playback",
+    "need reliable cross-device playback control": "Need reliable cross-device playback control",
+    "need uninterrupted listening when offline": "Need uninterrupted listening when offline",
+    "need better offline listening support": "Need uninterrupted listening when offline",
+    "need reliable offline downloads": "Need uninterrupted listening when offline",
+    "need better battery efficiency": "Need better battery efficiency",
+
+    # UI / search / library / catalog
+    "need a simpler, more intuitive interface": "Need a simpler, more intuitive interface",
+    "need simpler navigation": "Need a simpler, more intuitive interface",
+    "need stable, predictable ui changes": "Need stable, predictable UI changes",
+    "need stronger library management": "Need stronger library management",
+    "need a more accurate and powerful search": "Need a more accurate and powerful search",
+    "need broader catalog availability": "Need broader catalog availability",
+    "need full catalog availability in my region": "Need broader catalog availability",
+    "need a richer spoken-word catalog and experience": "Need a richer spoken-word catalog and experience",
+    "need better audio quality controls": "Need better audio quality controls",
+
+    # Behavior / modes
+    "need better shuffle controls": "Need smarter shuffle and autoplay",
+    "need a smarter, truly random shuffle": "Need smarter shuffle and autoplay",
+    "need better queue and playback control": "Need better queue and playback control",
+    "need easier playlist management": "Need easier playlist management",
+    "need workout-friendly listening modes": "Need mood and context-aware recommendations",
+    "need safer family-oriented listening experiences": "Need safer family-oriented listening experiences",
+    "need better listening modes and session control": "Need better listening modes and session control",
+    "need richer social listening and sharing features": "Need richer social listening and sharing features",
+
+    # Generic / preserve-the-good
+    "need to preserve current recommendation quality": "Need to preserve the positives users already value",
+    "need to preserve the positives users already value": "Need to preserve the positives users already value",
+    "need a more reliable music experience": "Need a more reliable music experience",
+}
+
+# Discovery-focused unmet needs (used for prioritization in answers).
+DISCOVERY_FOCUSED_NEEDS: frozenset[str] = frozenset({
+    "Need easier music discovery",
+    "Need easier artist discovery",
+    "Need easier visibility into new releases",
+    "Need guided discovery beyond existing listening habits",
+    "Need exposure to unfamiliar genres",
+    "Need exposure to similar but unfamiliar music",
+    "Need exposure to more relevant music",
+    "Need exposure to music beyond the default catalog",
+    "Need confidence when exploring new music",
+    "Need recommendations balancing familiarity and novelty",
+    "Need more diverse recommendations",
+    "Need stronger curated discovery playlists",
+    "Need fresher and more accurate recommendations",
+    "Need fresher and more accurate Discover Weekly",
+    "Need better personalization",
+    "Need personalized playlists that surface fresh music",
+    "Need a dedicated discovery surface beyond Discover Weekly",
+    "Need regional and language-specific discovery",
+    "Need broader genre coverage in personalized playlists",
+    "Need control over what's surfaced in personalized playlists",
+    "Need mood and context-aware recommendations",
+})
+
+
+_TRAILING_TAG_RE = re.compile(r"\s*\((?:general|broad|other|catch[-\s]?all|misc)\)\s*$", re.I)
+
+
+def strategic_rewrite(text: str) -> str:
+    """Map feature-oriented phrasing to motivation-driven phrasing.
+
+    Returns the canonical strategic phrase when one is known; otherwise
+    returns the input normalized via ``_normalize_phrase``.
+    """
+    cleaned = _normalize_phrase(text)
+    cleaned = _TRAILING_TAG_RE.sub("", cleaned).strip()
+    for pattern, target in _STRATEGIC_REWRITE_RULES:
+        if pattern.search(cleaned):
+            cleaned = target
+            break
+    return _CANONICAL_NEEDS.get(cleaned.lower(), cleaned)
+
+
+# Phrases that look like "Need …" but actually praise the product. These are
+# strengths, not unmet needs — chat answers should never surface them in the
+# Unmet Needs section.
+NON_UNMET_NEED_LABELS: frozenset[str] = frozenset({
+    "Need to preserve the positives users already value",
+    "Need to preserve current recommendation quality",
+})
+
+
 def _is_empty(value: object) -> bool:
     if value is None:
         return True
@@ -188,9 +446,9 @@ def infer_unmet_need(
     specific_pain: object = None,
     listening_style: object = None,
 ) -> str:
-    """Return a non-empty unmet-need phrase for a single review."""
+    """Return a non-empty, motivation-driven unmet-need phrase for a review."""
     if not _is_empty(existing):
-        return _normalize_phrase(str(existing))
+        return strategic_rewrite(str(existing))
 
     blob = " ".join(
         str(v) for v in (verbatim_quote, specific_pain, listening_style)
@@ -200,11 +458,11 @@ def infer_unmet_need(
     if blob:
         for pattern, phrase in _KEYWORD_PATTERNS:
             if pattern.search(blob):
-                return phrase
+                return strategic_rewrite(phrase)
 
     key = str(pain_category or "").strip().lower()
     if key in _PAIN_CATEGORY_DEFAULTS:
-        return _PAIN_CATEGORY_DEFAULTS[key]
+        return strategic_rewrite(_PAIN_CATEGORY_DEFAULTS[key])
 
     return _DEFAULT_NEED
 
