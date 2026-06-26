@@ -1,6 +1,35 @@
 "use client";
 
-import { ArrowRight, Database, MessageSquare, Sparkles, Brain } from "lucide-react";
+import {
+  ArrowRight,
+  Database,
+  MessageSquare,
+  Sparkles,
+  Brain,
+  Compass,
+  Music,
+  Headphones,
+  Crown,
+  Volume2,
+  Users,
+} from "lucide-react";
+
+const SEGMENTS: { name: string; icon: typeof Compass; accent: string }[] = [
+  { name: "Discovery Seeker", icon: Compass, accent: "text-app-green" },
+  { name: "Playlist User", icon: Music, accent: "text-sky-400" },
+  { name: "Heavy Listener", icon: Headphones, accent: "text-fuchsia-400" },
+  { name: "Premium User", icon: Crown, accent: "text-amber-300" },
+  { name: "Free User", icon: Volume2, accent: "text-red-400" },
+  { name: "Casual Listener", icon: Users, accent: "text-slate-300" },
+];
+
+const SEGMENTATION_SIGNALS = [
+  "Review intent",
+  "Listening behaviors",
+  "Recommendation-related frustrations",
+  "Subscription context",
+  "Discovery goals",
+];
 
 const stages = [
   {
@@ -58,6 +87,56 @@ export function WorkflowDiagram() {
             </div>
           );
         })}
+      </div>
+
+      <div className="bg-app-panel border border-app-border rounded-lg p-6 space-y-5">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-app-green/15 text-app-green flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-white">How User Segments Are Identified</h3>
+            <p className="text-sm text-app-muted leading-relaxed mt-1">
+              Users are automatically segmented using AI analysis of review intent, listening
+              behaviors, recommendation-related frustrations, subscription context, and discovery
+              goals. The system groups users based on recurring behavioral signals and pain points
+              found across reviews.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-app-muted mb-2">
+            Signals analyzed
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {SEGMENTATION_SIGNALS.map((s) => (
+              <span
+                key={s}
+                className="text-xs px-2.5 py-1 rounded-full bg-app-bg border border-app-border text-app-text"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-app-muted mb-2">
+            Segments
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {SEGMENTS.map(({ name, icon: Icon, accent }) => (
+              <div
+                key={name}
+                className="flex items-center gap-2.5 bg-app-bg border border-app-border rounded-lg px-3 py-2"
+              >
+                <Icon className={`w-4 h-4 ${accent}`} />
+                <span className="text-sm text-white">{name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="bg-app-panel border border-app-border rounded-lg p-6">
