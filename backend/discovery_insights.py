@@ -28,6 +28,7 @@ import pandas as pd
 sys.path.append(str(Path(__file__).resolve().parent))
 
 from data_loader import load_insights_df  # noqa: E402
+from confidence import source_counts_from_frame  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Grouping rules
@@ -574,6 +575,8 @@ def _group_dataframe(
             continue
         matched_idx = list(df.index[mask])
         count = len(matched_idx)
+        slice_df = df.loc[matched_idx]
+        source_counts = source_counts_from_frame(slice_df)
         examples_seen: list[str] = []
         for idx in matched_idx:
             seen_rows.add(int(idx))
@@ -587,6 +590,7 @@ def _group_dataframe(
             "count": int(count),
             "share_of_corpus": _percent(count, corpus_total),
             "share_of_pool": _percent(count, pool_total) if pool_total else "",
+            "source_counts": source_counts,
             "examples": examples_seen,
         })
 

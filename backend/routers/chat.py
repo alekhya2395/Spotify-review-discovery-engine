@@ -39,6 +39,11 @@ from unmet_need_inference import (  # noqa: E402
     NON_UNMET_NEED_LABELS,
     strategic_rewrite,
 )
+from confidence import (  # noqa: E402
+    confidence_markdown_lines,
+    enrich_finding,
+    source_counts_for_pain_category,
+)
 from format_labels import (  # noqa: E402
     FOCUS_AREA_BY_TOPIC,
     PAIN_INSIGHT,
@@ -181,20 +186,30 @@ Open the section with two header lines (NOT bullets):
 **Discovery-Related Reviews:** `<evidence.discovery_related.count>` (`<evidence.discovery_related.share>`)
 
 Then list 4–8 bullets, each a SPECIFIC finding with a meaningful sample size. Use this exact wording pattern:
-- `- {count} reviews ({percent} of {pool}) {prose}.`
-  where `{pool}` is one of: `discovery-related`, `repetition-related`, `negative discovery feedback`, `total`.
+- `- **{label}** — {count} reviews ({percent} of {pool}) {prose}.`
+  Immediately follow with two indented sub-bullets from `evidence.findings[].confidence`:
+  `  - **Confidence:** High|Medium|Low`
+  `  - **Supported by:** {confidence_support}`
 
-Pull the counts and percentages from `evidence.findings` (already pre-ranked) plus `evidence.discovery_insights` / `evidence.root_causes` / `evidence.user_segments`. NEVER write things like "Supporting Reviews: 5", "Matched reviews: 14", or any number below ~10 that would look statistically weak. NEVER invent numbers; if the context only gives a small denominator for a finding, omit that finding.
+Pull the counts, percentages, confidence, and support lines from `evidence.findings` (already pre-ranked) plus `evidence.discovery_insights` / `evidence.root_causes` / `evidence.user_segments`. NEVER write things like "Supporting Reviews: 5", "Matched reviews: 14", or any number below ~10 that would look statistically weak. NEVER invent numbers; if the context only gives a small denominator for a finding, omit that finding.
 
 If no findings reach a meaningful sample size, OMIT the Evidence section entirely.
 
 ## Key Pain Points
 3–5 bullets. Each bullet is a specific user complaint RELEVANT to the question.
-Format: `- **<Pain Category>**: <one sentence>.`
+Format:
+- `- **<Pain Category>**: <one sentence>.`
+  Then add confidence sub-bullets when `pain_categories[].confidence` is present:
+  `  - **Confidence:** High|Medium|Low`
+  `  - **Supported by:** {confidence_support}`
 
 ## Root Causes
 3–5 bullets explaining WHY the pain points happen, drawn from review unmet_need patterns and themes.
-Format: `- **<Cause label>**: <one sentence>.`
+Format:
+- `- **<Cause label>**: <one sentence>.`
+  Then add confidence sub-bullets when `root_causes[].confidence` is present:
+  `  - **Confidence:** High|Medium|Low`
+  `  - **Supported by:** {confidence_support}`
 
 ## Affected User Segments
 3–5 bullets naming user segments most impacted. Use segments named in the context. Add a % only if it appears in `dataset_stats.segments` or `evidence`.
@@ -1182,6 +1197,14 @@ def _build_evidence_pack(
                 "relevant": relevant,
             })
         ranked.sort(key=lambda r: (not r["relevant"], -r["count"]))
+        for row in ranked[:8]:
+            row["source_counts"] = source_counts_for_pain_category(str(row["key"]))
+            enrich_finding(
+                row,
+                count=row["count"],
+                share=row["share"],
+                source_counts=row["source_counts"],
+            )
         pack["pain_categories"] = ranked[:8]
 
     # Segment distribution
@@ -1276,13 +1299,19 @@ def _build_evidence_pack(
             top = [c for c in rc.get("causes", []) if c.get("count")][:6]
             if top:
                 pack["root_causes"] = [
-                    {
-                        "label": c["label"],
-                        "summary": c["summary"],
-                        "count": c["count"],
-                        "share_of_corpus": c["share_of_corpus"],
-                        "top_pain_categories": c["top_pain_categories"],
-                    }
+                    enrich_finding(
+                        {
+                            "label": c["label"],
+                            "summary": c["summary"],
+                            "count": c["count"],
+                            "share_of_corpus": c["share_of_corpus"],
+                            "top_pain_categories": c["top_pain_categories"],
+                            "source_counts": c.get("source_counts") or {},
+                        },
+                        count=c["count"],
+                        share=c["share_of_corpus"],
+                        source_counts=c.get("source_counts") or {},
+                    )
                     for c in top
                 ]
         except Exception:  # pragma: no cover
@@ -1489,27 +1518,29 @@ def _collect_evidence_findings(evidence: dict[str, Any]) -> list[dict[str, Any]]
             count = int(group.get("count") or 0)
             if count < _MIN_EVIDENCE_COUNT:
                 continue
-            primary.append({
+            primary.append(enrich_finding({
                 "count": count,
                 "share": group.get("share_of_pool") or group.get("share_of_corpus") or "",
                 "pool": _POOL_LABELS[section_key],
                 "label": label,
                 "prose": _prose_for_label(label),
                 "source": section_key,
-            })
+                "source_counts": group.get("source_counts") or {},
+            }))
 
     for rc in evidence.get("root_causes") or []:
         count = int(rc.get("count") or 0)
         if count < _MIN_EVIDENCE_COUNT:
             continue
-        primary.append({
+        primary.append(enrich_finding({
             "count": count,
             "share": rc.get("share_of_corpus") or "",
             "pool": _POOL_LABELS["root_causes"],
             "label": rc.get("label") or "",
             "prose": _prose_for_label(rc.get("label") or ""),
             "source": "root_causes",
-        })
+            "source_counts": rc.get("source_counts") or {},
+        }))
 
     # Segment-scoped findings: "X reviews (Y% of Premium User segment) cite Z".
     for seg in evidence.get("user_segments") or []:
@@ -1520,25 +1551,27 @@ def _collect_evidence_findings(evidence: dict[str, Any]) -> list[dict[str, Any]]
         pool = f"of {seg_name} segment"
         pf = seg.get("primary_frustration") or {}
         if pf.get("count") and int(pf["count"]) >= _MIN_EVIDENCE_COUNT:
-            primary.append({
+            primary.append(enrich_finding({
                 "count": int(pf["count"]),
                 "share": pf.get("share_of_segment") or "",
                 "pool": pool,
                 "label": f"{seg_name} primary frustration",
                 "prose": f"describe **{pf.get('label')}** as their top frustration",
                 "source": "user_segments",
-            })
+                "source_counts": seg.get("source_counts") or {},
+            }))
         un = seg.get("unmet_need") or {}
         if un.get("count") and int(un["count"]) >= _MIN_EVIDENCE_COUNT:
             un_label = (un.get("label") or "").rstrip(".")
-            primary.append({
+            primary.append(enrich_finding({
                 "count": int(un["count"]),
                 "share": un.get("share_of_segment") or "",
                 "pool": pool,
                 "label": f"{seg_name} unmet need",
                 "prose": f"express the unmet need: **{un_label}**",
                 "source": "user_segments",
-            })
+                "source_counts": seg.get("source_counts") or {},
+            }))
 
     for item in evidence.get("pain_categories") or []:
         count = int(item.get("count") or 0)
@@ -1548,14 +1581,15 @@ def _collect_evidence_findings(evidence: dict[str, Any]) -> list[dict[str, Any]]
         label = item.get("label") or ""
         if key in _GENERIC_PAIN_KEYS or label.lower() in _GENERIC_PAIN_LABELS:
             continue
-        secondary.append({
+        secondary.append(enrich_finding({
             "count": count,
             "share": item.get("share") or "",
             "pool": _POOL_LABELS["pain_categories"],
             "label": label,
             "prose": f"fall under **{label}**",
             "source": "pain_categories",
-        })
+            "source_counts": item.get("source_counts") or {},
+        }))
 
     primary.sort(key=lambda f: -(f["count"] or 0))
     secondary.sort(key=lambda f: -(f["count"] or 0))
@@ -1593,10 +1627,14 @@ def _evidence_section_lines(evidence: dict[str, Any]) -> list[str]:
         share = f.get("share") or ""
         pool = f.get("pool") or "of total"
         share_part = f"{share} {pool}".strip()
+        label = f.get("label") or ""
+        title = f"**{label}** — " if label else ""
         if share_part:
-            lines.append(f"- {f['count']:,} reviews ({share_part}) {f['prose']}.")
+            lines.append(f"- {title}{f['count']:,} reviews ({share_part}) {f['prose']}.")
         else:
-            lines.append(f"- {f['count']:,} reviews {f['prose']}.")
+            lines.append(f"- {title}{f['count']:,} reviews {f['prose']}.")
+        if f.get("confidence") and f.get("confidence_support"):
+            lines.extend(confidence_markdown_lines(f["confidence"], f["confidence_support"]))
         findings_added += 1
         if findings_added >= 8:
             break
@@ -1638,6 +1676,11 @@ def _pain_section_lines(evidence: dict[str, Any], topic: str) -> list[str]:
     lines: list[str] = []
     matched = evidence.get("matched_reviews") or {}
     pool = matched.get("top_pain_categories") or evidence.get("pain_categories") or []
+    conf_by_key = {
+        str(item.get("key") or "").lower(): item
+        for item in (evidence.get("pain_categories") or [])
+        if item.get("key")
+    }
     seen: set[str] = set()
     for item in pool:
         label = item.get("label") or ""
@@ -1653,6 +1696,24 @@ def _pain_section_lines(evidence: dict[str, Any], topic: str) -> list[str]:
         suffix_bits = [b for b in (mentions, share) if b]
         suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
         lines.append(f"- **{label}**{suffix}: {insight}")
+        conf_item = conf_by_key.get(key) or item
+        conf_level = conf_item.get("confidence")
+        conf_support = conf_item.get("confidence_support")
+        if not conf_level or not conf_support:
+            enriched = enrich_finding(
+                {
+                    "count": count,
+                    "share": share,
+                    "source_counts": conf_item.get("source_counts")
+                    or source_counts_for_pain_category(key),
+                },
+                count=count,
+                share=share,
+            )
+            conf_level = enriched.get("confidence")
+            conf_support = enriched.get("confidence_support")
+        if conf_level and conf_support:
+            lines.extend(confidence_markdown_lines(conf_level, conf_support))
         seen.add(label)
         if len(lines) >= 5:
             break
@@ -1683,6 +1744,8 @@ def _root_cause_lines(
         suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
         summary = (rc.get("summary") or "").rstrip(".")
         causes.append(f"- **{label}**{suffix}: {summary}.")
+        if rc.get("confidence") and rc.get("confidence_support"):
+            causes.extend(confidence_markdown_lines(rc["confidence"], rc["confidence_support"]))
         seen.add(norm)
         if len(causes) >= 4:
             break
@@ -1710,7 +1773,21 @@ def _root_cause_lines(
             share = group.get("share_of_pool") or group.get("share_of_corpus") or ""
             suffix_bits = [b for b in (_mentions(count), share) if b]
             suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
-            causes.append(f"- **{label_prefix}**: {label.rstrip('.')}.{suffix}")
+            line = f"- **{label_prefix}**: {label.rstrip('.')}.{suffix}"
+            causes.append(line)
+            conf_level = group.get("confidence")
+            conf_support = group.get("confidence_support")
+            if not conf_level or not conf_support:
+                enriched = enrich_finding(
+                    {"count": count, "share": share, "source_counts": group.get("source_counts") or {}},
+                    count=count,
+                    share=share,
+                    source_counts=group.get("source_counts") or {},
+                )
+                conf_level = enriched.get("confidence")
+                conf_support = enriched.get("confidence_support")
+            if conf_level and conf_support:
+                causes.extend(confidence_markdown_lines(conf_level, conf_support))
             seen.add(norm)
             if len(causes) >= 4:
                 break

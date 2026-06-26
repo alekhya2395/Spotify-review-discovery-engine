@@ -29,6 +29,7 @@ import pandas as pd
 sys.path.append(str(Path(__file__).resolve().parent))
 
 from data_loader import load_insights_df  # noqa: E402
+from confidence import source_counts_from_frame  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -364,6 +365,7 @@ def _build_payload(df: pd.DataFrame) -> dict[str, Any]:
             "summary": rule.summary,
             "count": count,
             "share_of_corpus": _percent(count, total),
+            "source_counts": source_counts_from_frame(slice_df),
             "top_pain_categories": _top_pain_categories(slice_df),
             "examples": examples,
         })
