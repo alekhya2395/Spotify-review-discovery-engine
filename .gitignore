@@ -30,3 +30,6 @@ last_chat_answer.txt
 # OS
 .DS_Store
 Thumbs.db
+
+.vercel
+.env*
