@@ -11,6 +11,7 @@ import { ThemeCards } from "./components/ThemeCards";
 import { ChatPanel } from "./components/ChatPanel";
 import { WorkflowDiagram } from "./components/WorkflowDiagram";
 import { DiscoveryInsights } from "./components/DiscoveryInsights";
+import { CausesAndSegments } from "./components/CausesAndSegments";
 
 function isDiscoveryQuestion(query: string): boolean {
   const q = query.trim().toLowerCase();
@@ -108,6 +109,7 @@ export default function Page() {
 
         {tab === "insights" && <ThemeCards themes={themes} />}
         {tab === "discovery" && <DiscoveryInsights />}
+        {tab === "causes" && <CausesAndSegments />}
         {tab === "workflow" && <WorkflowDiagram />}
         {tab === "chat" && (
           <ChatPanel

@@ -15,6 +15,7 @@ const NAV: { id: NavTab; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "insights", label: "Insights" },
   { id: "discovery", label: "Discovery" },
+  { id: "causes", label: "Causes" },
   { id: "workflow", label: "Workflow" },
   { id: "chat", label: "Chat" },
 ];

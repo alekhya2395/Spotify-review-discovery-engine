@@ -3,12 +3,13 @@
 import { Moon, Search } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 
-export type NavTab = "dashboard" | "insights" | "discovery" | "workflow" | "chat";
+export type NavTab = "dashboard" | "insights" | "discovery" | "causes" | "workflow" | "chat";
 
 const NAV: { id: NavTab; label: string }[] = [
   { id: "dashboard", label: "Dashboard" },
   { id: "insights", label: "Insights" },
   { id: "discovery", label: "Discovery" },
+  { id: "causes", label: "Causes" },
   { id: "workflow", label: "Workflow" },
   { id: "chat", label: "Chat" },
 ];

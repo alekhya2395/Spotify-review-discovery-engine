@@ -25,7 +25,15 @@ load_dotenv(_BACKEND / ".env")
 load_dotenv(_ROOT / ".env", override=True)
 
 from data_loader import data_summary  # noqa: E402
-from routers import chat, discovery, insights, report, stats, themes  # noqa: E402
+from routers import (  # noqa: E402
+    causes_segments,
+    chat,
+    discovery,
+    insights,
+    report,
+    stats,
+    themes,
+)
 
 _DEFAULT_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
 ALLOWED_ORIGINS = [
@@ -73,4 +81,5 @@ app.include_router(insights.router, prefix="/api", tags=["insights"])
 app.include_router(themes.router, prefix="/api", tags=["themes"])
 app.include_router(report.router, prefix="/api", tags=["report"])
 app.include_router(discovery.router, prefix="/api", tags=["discovery"])
+app.include_router(causes_segments.router, prefix="/api", tags=["causes-segments"])
 app.include_router(chat.router, prefix="/api", tags=["chat"])

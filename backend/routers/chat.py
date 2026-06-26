@@ -32,6 +32,8 @@ sys.path.append(str(Path(__file__).resolve().parents[2]))
 from groq_env import groq_api_key, groq_chat_model  # noqa: E402
 from rag import build_review_context  # noqa: E402
 from discovery_insights import compute_discovery_insights  # noqa: E402
+from root_causes import compute_root_causes  # noqa: E402
+from user_segments import compute_user_segments  # noqa: E402
 from format_labels import (  # noqa: E402
     FOCUS_AREA_BY_TOPIC,
     PAIN_INSIGHT,
@@ -1248,9 +1250,79 @@ def _build_evidence_pack(
         except Exception:  # pragma: no cover - never block answer on this
             logger.exception("Failed to attach discovery insights to evidence pack")
 
+    # Inject root-cause analysis on cause/why/driver questions.
+    if intent == "why_cause" or any(k in q_lower for k in (
+        "why", "cause", "reason", "driver", "behind", "root cause",
+    )):
+        try:
+            rc = compute_root_causes()
+            top = [c for c in rc.get("causes", []) if c.get("count")][:6]
+            if top:
+                pack["root_causes"] = [
+                    {
+                        "label": c["label"],
+                        "summary": c["summary"],
+                        "count": c["count"],
+                        "share_of_corpus": c["share_of_corpus"],
+                        "top_pain_categories": c["top_pain_categories"],
+                    }
+                    for c in top
+                ]
+        except Exception:  # pragma: no cover
+            logger.exception("Failed to attach root causes to evidence pack")
+
+    # Inject segment insights when the question is about specific user types.
+    segment_keywords = (
+        "segment", "user type", "user group",
+        "premium", "free user", "free tier", "paid",
+        "heavy", "casual", "discovery seeker", "playlist user",
+        "who is", "which users", "which group",
+    )
+    if any(k in q_lower for k in segment_keywords):
+        try:
+            us = compute_user_segments()
+            relevant = _select_relevant_segments(us, q_lower)
+            if relevant:
+                pack["user_segments"] = relevant
+        except Exception:  # pragma: no cover
+            logger.exception("Failed to attach user segments to evidence pack")
+
     pack["intent"] = intent
     pack["topic"] = topic
     return pack
+
+
+def _select_relevant_segments(us: dict[str, Any], q_lower: str) -> list[dict[str, Any]]:
+    """Pick segments mentioned by the question; default to top 3 by size."""
+    segments = us.get("segments") or []
+    if not segments:
+        return []
+    name_keywords: dict[str, tuple[str, ...]] = {
+        "Discovery Seeker": ("discovery seeker", "seeker"),
+        "Playlist User": ("playlist user", "playlist users", "playlist-driven"),
+        "Heavy Listener": ("heavy listener", "heavy user", "power user"),
+        "Casual Listener": ("casual listener", "casual user", "occasional"),
+        "Premium User": ("premium", "paid", "subscriber"),
+        "Free User": ("free user", "free tier", "free-tier", "ad-supported", "ad tier"),
+    }
+    picked: list[dict[str, Any]] = []
+    for seg in segments:
+        if any(kw in q_lower for kw in name_keywords.get(seg["name"], ())):
+            picked.append(seg)
+    if not picked:
+        picked = sorted(segments, key=lambda s: -(s.get("count") or 0))[:3]
+    return [
+        {
+            "name": s["name"],
+            "description": s["description"],
+            "count": s["count"],
+            "share_of_corpus": s["share_of_corpus"],
+            "primary_frustration": s.get("primary_frustration"),
+            "discovery_challenge": s.get("discovery_challenge"),
+            "unmet_need": s.get("unmet_need"),
+        }
+        for s in picked
+    ]
 
 
 def _select_discovery_sections(di: dict[str, Any], question: str) -> dict[str, Any]:
@@ -1315,6 +1387,26 @@ def _evidence_section_lines(evidence: dict[str, Any]) -> list[str]:
                 f"- Within matched reviews, **{item['label']}** accounts for "
                 f"{mentions} ({item['share_of_matched']})."
             )
+
+    # Surface structured root-cause evidence when attached.
+    for rc in (evidence.get("root_causes") or [])[:3]:
+        count = rc.get("count") or 0
+        share = rc.get("share_of_corpus") or ""
+        lines.append(
+            f"- Root cause — **{rc['label']}**: {count:,} reviews ({share} of corpus)."
+        )
+        if len(lines) >= 10:
+            break
+
+    # Surface segment evidence when attached.
+    for seg in (evidence.get("user_segments") or [])[:3]:
+        count = seg.get("count") or 0
+        share = seg.get("share_of_corpus") or ""
+        lines.append(
+            f"- Segment — **{seg['name']}**: {count:,} reviews ({share} of corpus)."
+        )
+        if len(lines) >= 12:
+            break
 
     # Surface discovery insight evidence when attached.
     discovery = evidence.get("discovery_insights") or {}
@@ -1405,8 +1497,25 @@ def _root_cause_lines(
     causes: list[str] = []
     seen: set[str] = set()
 
-    # When the question is about discovery/repetition, seed root causes with the
-    # grouped discovery insight findings (these are real, counted patterns).
+    # Seed from structured root-cause analysis when attached.
+    for rc in (evidence.get("root_causes") or [])[:3]:
+        label = (rc.get("label") or "").strip()
+        if not label:
+            continue
+        norm = _norm_text(label)[:100]
+        if norm in seen:
+            continue
+        count = rc.get("count")
+        share = rc.get("share_of_corpus") or ""
+        suffix_bits = [b for b in (_mentions(count), share and f"{share} of corpus") if b]
+        suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
+        summary = (rc.get("summary") or "").rstrip(".")
+        causes.append(f"- **{label}**{suffix}: {summary}.")
+        seen.add(norm)
+        if len(causes) >= 4:
+            break
+
+    # Then seed from grouped discovery insights when relevant.
     discovery = evidence.get("discovery_insights") or {}
     seed_keys: list[tuple[str, str]] = []
     q_lower = question.lower()
@@ -1415,6 +1524,8 @@ def _root_cause_lines(
     if any(k in q_lower for k in ("why", "cause", "struggle", "hard", "difficult", "discover", "find")):
         seed_keys.append(("discovery_struggles", "Discovery struggle"))
     for section_key, label_prefix in seed_keys:
+        if len(causes) >= 4:
+            break
         block = discovery.get(section_key) or {}
         for group in (block.get("groups") or [])[:3]:
             label = group.get("label") or ""
@@ -1431,8 +1542,6 @@ def _root_cause_lines(
             seen.add(norm)
             if len(causes) >= 4:
                 break
-        if len(causes) >= 4:
-            break
 
     reviews = payload.get("matched_reviews") or []
     filtered = _filter_reviews_for_question(reviews, question, topic, limit=12)
@@ -1471,9 +1580,38 @@ def _root_cause_lines(
 
 
 def _segment_lines(evidence: dict[str, Any]) -> list[str]:
+    lines: list[str] = []
+    seen: set[str] = set()
+
+    # Prefer the structured 6-segment classification when attached.
+    for seg in (evidence.get("user_segments") or [])[:6]:
+        name = (seg.get("name") or "").strip()
+        if not name or name in seen:
+            continue
+        count = seg.get("count")
+        share = seg.get("share_of_corpus") or ""
+        noun = "1 review" if count == 1 else f"{count:,} reviews" if count else ""
+        suffix_bits = [b for b in (noun, share) if b]
+        suffix = f" ({', '.join(suffix_bits)})" if suffix_bits else ""
+        bits: list[str] = []
+        pf = seg.get("primary_frustration") or {}
+        if pf.get("label"):
+            bits.append(f"primary frustration: {pf['label']}")
+        dc = seg.get("discovery_challenge") or {}
+        if dc.get("label"):
+            bits.append(f"discovery challenge: {dc['label']}")
+        un = seg.get("unmet_need") or {}
+        if un.get("label"):
+            bits.append(f"unmet need: {un['label']}")
+        detail = " — " + "; ".join(bits) if bits else ""
+        lines.append(f"- **{name}**{suffix}{detail}.")
+        seen.add(name)
+
+    if lines:
+        return lines
+
     matched = (evidence.get("matched_reviews") or {}).get("top_segments") or []
     pool = matched or evidence.get("segments") or []
-    lines: list[str] = []
     for item in pool[:5]:
         label = item.get("label") or ""
         count = item.get("count")

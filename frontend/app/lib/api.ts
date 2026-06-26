@@ -173,6 +173,45 @@ export type DiscoveryInsightsPayload = {
   discovery_unmet_needs: DiscoveryInsightSection;
 };
 
+export type RootCause = {
+  label: string;
+  summary: string;
+  count: number;
+  share_of_corpus: string;
+  top_pain_categories: { key: string; count: number; share_of_cause: string }[];
+  examples: string[];
+};
+
+export type RootCausesPayload = {
+  computed_at: string;
+  total_reviews: number;
+  causes: RootCause[];
+};
+
+export type SegmentSignal = {
+  key?: string;
+  label: string;
+  count: number;
+  share_of_segment: string;
+};
+
+export type UserSegment = {
+  name: string;
+  description: string;
+  count: number;
+  share_of_corpus: string;
+  sentiment_mix: Record<string, string>;
+  primary_frustration: SegmentSignal | null;
+  discovery_challenge: SegmentSignal | null;
+  unmet_need: SegmentSignal | null;
+};
+
+export type UserSegmentsPayload = {
+  computed_at: string;
+  total_reviews: number;
+  segments: UserSegment[];
+};
+
 export const api = {
   health: () => jget<{ status: string; data: Record<string, unknown> }>("/health"),
   stats: () => jget<Stats>("/stats"),
@@ -180,6 +219,8 @@ export const api = {
   report: () => jget<{ markdown: string }>("/report"),
   filters: () => jget<FilterOptions>("/insights/filters"),
   discoveryInsights: () => jget<DiscoveryInsightsPayload>("/discovery-insights"),
+  rootCauses: () => jget<RootCausesPayload>("/root-causes"),
+  userSegments: () => jget<UserSegmentsPayload>("/user-segments"),
   insights: (params: Record<string, string | number | boolean | undefined>) => {
     const qs = new URLSearchParams();
     Object.entries(params).forEach(([k, v]) => {
