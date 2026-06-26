@@ -167,9 +167,21 @@ OUTPUT FORMAT (markdown — use `## Header` for each section)
 2–3 sentences that directly answer the question. State the finding as a product insight, not a description of the dataset.
 
 ## Evidence
-Bullet list of the strongest numeric signals from `dataset_stats` or `evidence` that support the answer.
-- Use exact counts/percentages from CONTEXT only.
-- If CONTEXT supplies no real numbers relevant to the question, OMIT this section entirely.
+Use the FULL analyzed dataset as the denominator — never the small "matched_reviews" subset.
+
+Open the section with two header lines (NOT bullets):
+
+**Total Reviews Analyzed:** `<evidence.total_reviews>`
+
+**Discovery-Related Reviews:** `<evidence.discovery_related.count>` (`<evidence.discovery_related.share>`)
+
+Then list 4–8 bullets, each a SPECIFIC finding with a meaningful sample size. Use this exact wording pattern:
+- `- {count} reviews ({percent} of {pool}) {prose}.`
+  where `{pool}` is one of: `discovery-related`, `repetition-related`, `negative discovery feedback`, `total`.
+
+Pull the counts and percentages from `evidence.findings` (already pre-ranked) plus `evidence.discovery_insights` / `evidence.root_causes` / `evidence.user_segments`. NEVER write things like "Supporting Reviews: 5", "Matched reviews: 14", or any number below ~10 that would look statistically weak. NEVER invent numbers; if the context only gives a small denominator for a finding, omit that finding.
+
+If no findings reach a meaningful sample size, OMIT the Evidence section entirely.
 
 ## Key Pain Points
 3–5 bullets. Each bullet is a specific user complaint RELEVANT to the question.
@@ -1289,6 +1301,10 @@ def _build_evidence_pack(
 
     pack["intent"] = intent
     pack["topic"] = topic
+
+    # Pre-rank the strongest, statistically-meaningful findings so both Groq
+    # and the deterministic builder can render confidence-building Evidence.
+    pack["findings"] = _collect_evidence_findings(pack)
     return pack
 
 
@@ -1331,15 +1347,17 @@ def _select_discovery_sections(di: dict[str, Any], question: str) -> dict[str, A
     sections: list[str] = []
     if any(k in q for k in ("repeat", "repetition", "repetitive", "same song", "same artist", "loop", "shuffle", "autoplay")):
         sections.append("repetition_causes")
-    if any(k in q for k in ("frustrat", "annoy", "complain", "hate", "dislike", "problem")):
+    if any(k in q for k in ("frustrat", "annoy", "complain", "complaint", "hate", "dislike", "problem", "issue", "pain")):
         sections.append("discovery_frustrations")
+        sections.append("discovery_struggles")
     if any(k in q for k in ("need", "want", "wish", "should", "opportunity", "improve", "fix")):
         sections.append("discovery_unmet_needs")
-    if any(k in q for k in ("why", "cause", "struggle", "hard", "difficult", "can't", "cannot")):
+    if any(k in q for k in ("why", "cause", "struggle", "hard", "difficult", "can't", "cannot", "discover", "discovery", "find new", "exploration", "explore")):
         sections.append("discovery_struggles")
     # Default: when no specific keyword matches, return all 4 so the LLM can pick.
     if not sections:
         sections = ["discovery_struggles", "repetition_causes", "discovery_frustrations", "discovery_unmet_needs"]
+    sections = list(dict.fromkeys(sections))
     out: dict[str, Any] = {"totals": di.get("totals", {})}
     for key in sections:
         block = di.get(key) or {}
@@ -1362,78 +1380,227 @@ def _select_discovery_sections(di: dict[str, Any], question: str) -> dict[str, A
 # ---------------------------------------------------------------------------
 
 
+# Prose phrases for known group labels — used to make Evidence bullets read
+# naturally rather than echoing raw category labels. Anything missing falls
+# back to a generic "mention <Label>" phrasing.
+_FINDING_PROSE: dict[str, str] = {
+    # Discovery struggles
+    "Hard to find new artists or genres": "mention difficulty finding new artists or genres",
+    "Discover Weekly / Release Radar feel stale": "report stale Discover Weekly or Release Radar feeds",
+    "Recommendations feel irrelevant or off-target": "describe recommendations as irrelevant or off-target",
+    "Algorithm reinforces what users already listen to": "say the algorithm keeps surfacing what they already listen to",
+    "Limited paths to explore outside taste profile": "want more ways to explore outside their taste profile",
+    "Algorithm doesn't learn from feedback": "say the algorithm doesn't learn from their feedback",
+    "Mainstream bias hurts niche-genre listeners": "feel niche genres are underserved versus mainstream",
+    "Ads break the discovery flow on free tier": "say ads break their discovery flow on the free tier",
+    # Repetition causes
+    "Shuffle replays a small pool of tracks": "say shuffle replays the same small pool of tracks",
+    "Autoplay/Radio cycles the same artists": "say autoplay or radio cycles the same artists",
+    "Recommendation engine keeps surfacing favorites": "say recommendations keep surfacing familiar favourites",
+    "Discover Weekly recycles known tracks": "say Discover Weekly recycles tracks they already know",
+    "Single play permanently skews future suggestions": "say a single play permanently skews future suggestions",
+    "Library / queue keeps looping back": "describe their library or queue looping back",
+    "Algorithm interprets repeat plays as strong preference": "say repeat plays get over-weighted by the algorithm",
+    # Frustrations
+    "Recommendations feel stale and repetitive": "describe recommendations as stale or repetitive",
+    "Hard to escape past listening history": "say it's hard to escape past listening history",
+    "Algorithm doesn't understand my taste": "say the algorithm doesn't understand their taste",
+    "Discover Weekly disappoints over time": "say Discover Weekly has degraded over time",
+    "Ads disrupt active music exploration": "say ads disrupt active music exploration",
+    "Skipping songs doesn't seem to teach the algorithm": "say skipping songs doesn't teach the algorithm",
+    "Wanted curator/social/human picks but only get algorithmic ones": "want curator or human picks instead of pure algorithmic ones",
+    # Unmet needs
+    "More diverse recommendations": "want more diverse recommendations",
+    "Better personalization that learns from feedback": "want personalization that actually learns from feedback",
+    "Dedicated discovery surfaces beyond Discover Weekly": "want a dedicated discovery surface beyond Discover Weekly",
+    "User control over algorithmic intensity / novelty": "want more control over algorithmic novelty",
+    "Smarter shuffle and autoplay": "want smarter shuffle and autoplay behaviour",
+    "Curator- or human-driven discovery": "want curator- or human-driven discovery",
+    "Social and friend-based discovery": "want social or friend-based discovery",
+    "Mood and context-aware recommendations": "want mood and context-aware recommendations",
+    "Fresher and more accurate recommendations": "want fresher and more accurate recommendations",
+    "Easier music discovery (general)": "want music discovery to feel simpler overall",
+    # Root causes
+    "Over-personalization": "cite over-personalization in recommendations",
+    "Genre repetition": "cite genre repetition",
+    "Playlist dependency": "say discovery depends too heavily on Discover Weekly and curated playlists",
+    "Weak exploration tools": "cite weak exploration tools as a root cause",
+    "Feedback signals don't tune the algorithm": "say their feedback (skips, dislikes) doesn't tune the algorithm",
+    "Mainstream bias": "say the algorithm has a mainstream bias",
+    "Ad disruption (free tier)": "cite ad disruption on the free tier",
+    "Pricing & value friction": "cite pricing or value friction",
+    "Catalog gaps": "report catalog or availability gaps",
+    "Performance & stability": "report performance or stability issues",
+    "UI / navigation friction": "cite UI or navigation friction",
+}
+
+# Minimum count we'll show as evidence. Anything smaller looks statistically
+# weak — drop it to keep the Evidence section confidence-building.
+_MIN_EVIDENCE_COUNT = 10
+
+_POOL_LABELS: dict[str, str] = {
+    "discovery_struggles": "of discovery-related",
+    "repetition_causes": "of repetition-related",
+    "discovery_frustrations": "of negative discovery feedback",
+    "discovery_unmet_needs": "of discovery-related",
+    "root_causes": "of total",
+    "user_segments": "of total",
+    "pain_categories": "of total",
+}
+
+
+def _prose_for_label(label: str) -> str:
+    return _FINDING_PROSE.get(label) or f"mention **{label}**"
+
+
+_GENERIC_PAIN_KEYS = {"none", "nan", "", "other"}
+_GENERIC_PAIN_LABELS = {"general feedback", "none", "other"}
+
+
+def _collect_evidence_findings(evidence: dict[str, Any]) -> list[dict[str, Any]]:
+    """Collect ranked findings with meaningful sample sizes.
+
+    Returns specific patterns first (discovery groups, root causes,
+    segment-scoped findings) and then broad pain-category counts as fillers.
+    Each finding is a dict: ``{count, share, pool, label, prose, source, priority}``.
+    Skips anything below ``_MIN_EVIDENCE_COUNT`` and dedupes by prose so the
+    same pattern doesn't repeat.
+    """
+    primary: list[dict[str, Any]] = []
+    secondary: list[dict[str, Any]] = []
+
+    di = evidence.get("discovery_insights") or {}
+    for section_key in (
+        "discovery_struggles",
+        "repetition_causes",
+        "discovery_frustrations",
+        "discovery_unmet_needs",
+    ):
+        block = di.get(section_key) or {}
+        for group in block.get("groups") or []:
+            label = group.get("label") or ""
+            if not label or label.startswith("Other"):
+                continue
+            count = int(group.get("count") or 0)
+            if count < _MIN_EVIDENCE_COUNT:
+                continue
+            primary.append({
+                "count": count,
+                "share": group.get("share_of_pool") or group.get("share_of_corpus") or "",
+                "pool": _POOL_LABELS[section_key],
+                "label": label,
+                "prose": _prose_for_label(label),
+                "source": section_key,
+            })
+
+    for rc in evidence.get("root_causes") or []:
+        count = int(rc.get("count") or 0)
+        if count < _MIN_EVIDENCE_COUNT:
+            continue
+        primary.append({
+            "count": count,
+            "share": rc.get("share_of_corpus") or "",
+            "pool": _POOL_LABELS["root_causes"],
+            "label": rc.get("label") or "",
+            "prose": _prose_for_label(rc.get("label") or ""),
+            "source": "root_causes",
+        })
+
+    # Segment-scoped findings: "X reviews (Y% of Premium User segment) cite Z".
+    for seg in evidence.get("user_segments") or []:
+        seg_count = int(seg.get("count") or 0)
+        if seg_count < _MIN_EVIDENCE_COUNT:
+            continue
+        seg_name = seg.get("name") or ""
+        pool = f"of {seg_name} segment"
+        pf = seg.get("primary_frustration") or {}
+        if pf.get("count") and int(pf["count"]) >= _MIN_EVIDENCE_COUNT:
+            primary.append({
+                "count": int(pf["count"]),
+                "share": pf.get("share_of_segment") or "",
+                "pool": pool,
+                "label": f"{seg_name} primary frustration",
+                "prose": f"describe **{pf.get('label')}** as their top frustration",
+                "source": "user_segments",
+            })
+        un = seg.get("unmet_need") or {}
+        if un.get("count") and int(un["count"]) >= _MIN_EVIDENCE_COUNT:
+            un_label = (un.get("label") or "").rstrip(".")
+            primary.append({
+                "count": int(un["count"]),
+                "share": un.get("share_of_segment") or "",
+                "pool": pool,
+                "label": f"{seg_name} unmet need",
+                "prose": f"express the unmet need: **{un_label}**",
+                "source": "user_segments",
+            })
+
+    for item in evidence.get("pain_categories") or []:
+        count = int(item.get("count") or 0)
+        if count < _MIN_EVIDENCE_COUNT:
+            continue
+        key = str(item.get("key") or "").lower().strip()
+        label = item.get("label") or ""
+        if key in _GENERIC_PAIN_KEYS or label.lower() in _GENERIC_PAIN_LABELS:
+            continue
+        secondary.append({
+            "count": count,
+            "share": item.get("share") or "",
+            "pool": _POOL_LABELS["pain_categories"],
+            "label": label,
+            "prose": f"fall under **{label}**",
+            "source": "pain_categories",
+        })
+
+    primary.sort(key=lambda f: -(f["count"] or 0))
+    secondary.sort(key=lambda f: -(f["count"] or 0))
+    return primary + secondary
+
+
 def _evidence_section_lines(evidence: dict[str, Any]) -> list[str]:
-    """Build the Evidence bullets from the precomputed evidence pack."""
+    """Render the Evidence section using full-dataset numbers only.
+
+    Format:
+        **Total Reviews Analyzed:** 1,876
+        **Discovery-Related Reviews:** 619 (33.0%)
+
+        - {count} reviews ({pct} of {pool}) {prose}.
+    """
     lines: list[str] = []
     total = evidence.get("total_reviews") or 0
     if total:
-        lines.append(f"- Indexed reviews analyzed: **{total:,}**.")
-    if evidence.get("discovery_related"):
-        d = evidence["discovery_related"]
-        lines.append(
-            f"- Discovery-related feedback: **{d['count']:,}** reviews ({d['share']})."
-        )
-    matched = evidence.get("matched_reviews") or {}
-    if matched.get("count"):
-        line = f"- Reviews directly matching this question: **{matched['count']:,}**"
-        if matched.get("share_of_dataset"):
-            line += f" ({matched['share_of_dataset']} of the corpus)"
-        lines.append(line + ".")
-        for item in (matched.get("top_pain_categories") or [])[:3]:
-            mentions = _mentions(item.get("count"))
-            if not mentions:
-                continue
-            lines.append(
-                f"- Within matched reviews, **{item['label']}** accounts for "
-                f"{mentions} ({item['share_of_matched']})."
-            )
+        lines.append(f"**Total Reviews Analyzed:** {total:,}")
+    discovery = evidence.get("discovery_related")
+    if isinstance(discovery, dict) and discovery.get("count"):
+        share = discovery.get("share") or ""
+        share_suffix = f" ({share})" if share else ""
+        lines.append(f"**Discovery-Related Reviews:** {discovery['count']:,}{share_suffix}")
+    if lines:
+        lines.append("")  # blank line before findings
 
-    # Surface structured root-cause evidence when attached.
-    for rc in (evidence.get("root_causes") or [])[:3]:
-        count = rc.get("count") or 0
-        share = rc.get("share_of_corpus") or ""
-        lines.append(
-            f"- Root cause — **{rc['label']}**: {count:,} reviews ({share} of corpus)."
-        )
-        if len(lines) >= 10:
-            break
-
-    # Surface segment evidence when attached.
-    for seg in (evidence.get("user_segments") or [])[:3]:
-        count = seg.get("count") or 0
-        share = seg.get("share_of_corpus") or ""
-        lines.append(
-            f"- Segment — **{seg['name']}**: {count:,} reviews ({share} of corpus)."
-        )
-        if len(lines) >= 12:
-            break
-
-    # Surface discovery insight evidence when attached.
-    discovery = evidence.get("discovery_insights") or {}
-    for section_key, prefix in (
-        ("discovery_struggles", "Discovery struggle"),
-        ("repetition_causes", "Repetition cause"),
-        ("discovery_frustrations", "Discovery frustration"),
-        ("discovery_unmet_needs", "Discovery unmet need"),
-    ):
-        block = discovery.get(section_key)
-        if not block:
+    findings = _collect_evidence_findings(evidence)
+    seen_prose: set[str] = set()
+    findings_added = 0
+    for f in findings:
+        if f["prose"] in seen_prose:
             continue
-        for group in (block.get("groups") or [])[:2]:
-            count = int(group.get("count") or 0)
-            noun = "review" if count == 1 else "reviews"
-            share_pool = group.get("share_of_pool") or ""
-            share_corpus = group.get("share_of_corpus") or ""
-            share_bits = [b for b in (share_pool and f"{share_pool} of pool", share_corpus and f"{share_corpus} of corpus") if b]
-            share_suffix = f" — {', '.join(share_bits)}" if share_bits else ""
-            lines.append(
-                f"- {prefix} — **{group['label']}**: {count:,} {noun}{share_suffix}."
-            )
-            if len(lines) >= 12:
-                break
-        if len(lines) >= 12:
+        seen_prose.add(f["prose"])
+        share = f.get("share") or ""
+        pool = f.get("pool") or "of total"
+        share_part = f"{share} {pool}".strip()
+        if share_part:
+            lines.append(f"- {f['count']:,} reviews ({share_part}) {f['prose']}.")
+        else:
+            lines.append(f"- {f['count']:,} reviews {f['prose']}.")
+        findings_added += 1
+        if findings_added >= 8:
             break
-    return lines[:12]
+
+    # If we couldn't surface any meaningful findings, drop the header lines
+    # too — better to omit Evidence than show only totals.
+    if findings_added == 0:
+        return []
+    return lines
 
 
 _LABEL_TO_PAIN_KEY: dict[str, str] = {
@@ -1883,7 +2050,10 @@ def _build_groq_messages(
     if evidence is None:
         evidence = _build_evidence_pack(question, payload, topic, intent)
 
-    evidence_block = json.dumps(evidence, ensure_ascii=False, default=str)
+    # Keep the small "matched_reviews" subset out of the LLM context — its
+    # tiny denominator makes Evidence look statistically weak.
+    evidence_for_prompt = {k: v for k, v in evidence.items() if k != "matched_reviews"}
+    evidence_block = json.dumps(evidence_for_prompt, ensure_ascii=False, default=str)
     prefix = (
         "COMPACT CONTEXT — same rules: include only sections the data supports.\n\n"
         if compact else ""
