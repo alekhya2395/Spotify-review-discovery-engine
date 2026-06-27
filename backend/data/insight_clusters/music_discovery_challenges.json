@@ -1,0 +1,70 @@
+{
+  "total_reviews_analyzed": 1876,
+  "discovery_related_reviews": 619,
+  "discovery_related_share": "33.0%",
+  "category": "music_discovery_challenges",
+  "title": "Music Discovery Challenges",
+  "summary": "Users struggle to discover new music because algorithmic feeds reinforce existing tastes, exploration beyond playlists is limited, and paths to unfamiliar artists and genres are unclear.",
+  "evidence": [
+    {
+      "label": "Hard to find new artists or genres",
+      "count": 62,
+      "percentage": "10.0%",
+      "pool": "discovery-related",
+      "confidence": "High",
+      "support_line": "62 reviews across Reddit and Social Media"
+    },
+    {
+      "label": "Discover Weekly / Release Radar feel stale",
+      "count": 38,
+      "percentage": "6.1%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "38 reviews across Social Media, Reddit and Play Store"
+    },
+    {
+      "label": "Recommendations feel irrelevant or off-target",
+      "count": 15,
+      "percentage": "2.4%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "15 reviews across Reddit and Social Media"
+    }
+  ],
+  "key_pain_points": [
+    "Hard to find new artists or genres",
+    "Discover Weekly / Release Radar feel stale",
+    "Recommendations feel irrelevant or off-target"
+  ],
+  "root_causes": [
+    "Weak exploration tools: There are not enough surfaces, controls, or settings to actively go discover something new",
+    "Playlist dependency: Listeners can only discover through Discover Weekly / Release Radar / Daily Mix and have no alternatives",
+    "Over-personalization: Algorithm leans so hard on a user's history that it stops surfacing anything unfamiliar"
+  ],
+  "affected_segments": [
+    "Discovery Seeker: Hard to find new artists or genres",
+    "Playlist User: Discover Weekly / curated playlists feel stale",
+    "Heavy Listener: Discover Weekly / curated playlists feel stale",
+    "Casual Listener: Ads disrupt the discovery flow",
+    "Premium User: Discover Weekly / curated playlists feel stale",
+    "Free User: Ads disrupt the discovery flow"
+  ],
+  "unmet_needs": [
+    "Need easier music discovery",
+    "Need dedicated discovery surfaces beyond Discover Weekly",
+    "Need curator- or human-driven discovery",
+    "Need better personalization that learns from feedback",
+    "Need fresher and more accurate recommendations"
+  ],
+  "product_focus_areas": [
+    "Dedicated exploration surfaces beyond personalized home feeds",
+    "Guided discovery for unfamiliar genres and emerging artists",
+    "Clearer paths from search intent to new artist pages"
+  ],
+  "recommended_actions": [
+    "Launch a dedicated Explore surface outside the taste bubble with genre and mood bridges.",
+    "Add user-facing discovery intensity controls tied to recommendation novelty.",
+    "Instrument discovery funnels to measure first-time artist exposure per session."
+  ],
+  "overall_confidence": "High"
+}

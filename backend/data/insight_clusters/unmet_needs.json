@@ -1,0 +1,89 @@
+{
+  "total_reviews_analyzed": 1876,
+  "discovery_related_reviews": 619,
+  "discovery_related_share": "33.0%",
+  "category": "unmet_needs",
+  "title": "Unmet Needs",
+  "summary": "Reviews consistently surface strategic unmet needs: easier discovery, fresher recommendations, stronger curated playlists, and control over algorithmic novelty.",
+  "evidence": [
+    {
+      "label": "Easier music discovery (general)",
+      "count": 61,
+      "percentage": "9.9%",
+      "pool": "discovery-related",
+      "confidence": "High",
+      "support_line": "61 reviews across Reddit and Social Media"
+    },
+    {
+      "label": "Dedicated discovery surfaces beyond Discover Weekly",
+      "count": 30,
+      "percentage": "4.8%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "30 reviews across Social Media and Play Store"
+    },
+    {
+      "label": "Curator- or human-driven discovery",
+      "count": 30,
+      "percentage": "4.8%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "30 reviews across Social Media and Play Store"
+    },
+    {
+      "label": "Better personalization that learns from feedback",
+      "count": 15,
+      "percentage": "2.4%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "15 reviews across Reddit and Social Media"
+    },
+    {
+      "label": "Fresher and more accurate recommendations",
+      "count": 10,
+      "percentage": "1.6%",
+      "pool": "discovery-related",
+      "confidence": "Low",
+      "support_line": "10 reviews across Social Media and Reddit"
+    }
+  ],
+  "key_pain_points": [
+    "Need easier music discovery",
+    "Need dedicated discovery surfaces beyond Discover Weekly",
+    "Need curator- or human-driven discovery",
+    "Need better personalization that learns from feedback",
+    "Need fresher and more accurate recommendations"
+  ],
+  "root_causes": [
+    "Ad disruption (free tier): Free-tier ads break the listening flow and undermine intentional exploration",
+    "Weak exploration tools: There are not enough surfaces, controls, or settings to actively go discover something new",
+    "Performance & stability: Crashes, lag, sync issues, or login failures interrupt listening before discovery can happen",
+    "Playlist dependency: Listeners can only discover through Discover Weekly / Release Radar / Daily Mix and have no alternatives"
+  ],
+  "affected_segments": [
+    "Discovery Seeker: Hard to find new artists or genres",
+    "Playlist User: Discover Weekly / curated playlists feel stale",
+    "Heavy Listener: Discover Weekly / curated playlists feel stale",
+    "Casual Listener: Ads disrupt the discovery flow",
+    "Premium User: Discover Weekly / curated playlists feel stale",
+    "Free User: Ads disrupt the discovery flow"
+  ],
+  "unmet_needs": [
+    "Need easier music discovery",
+    "Need dedicated discovery surfaces beyond Discover Weekly",
+    "Need curator- or human-driven discovery",
+    "Need better personalization that learns from feedback",
+    "Need fresher and more accurate recommendations"
+  ],
+  "product_focus_areas": [
+    "Strategic needs over feature requests (motivation-first roadmap)",
+    "Regional and niche-genre discovery coverage",
+    "Balanced familiarity–novelty in recommendations"
+  ],
+  "recommended_actions": [
+    "Prioritize the top three strategic unmet needs with measurable success metrics.",
+    "Validate unmet-need clusters with follow-up in-product micro-surveys.",
+    "Map each unmet need to a concrete product bet and owner team."
+  ],
+  "overall_confidence": "High"
+}

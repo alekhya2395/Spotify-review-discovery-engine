@@ -1,0 +1,38 @@
+{
+  "total_reviews_analyzed": 1876,
+  "discovery_related_reviews": 619,
+  "discovery_related_share": "33.0%",
+  "category": "recommendation_quality",
+  "title": "Recommendation Quality",
+  "summary": "Recommendation quality suffers when suggestions feel stale, irrelevant, or misaligned with taste — users report the algorithm missing context from skips and dislikes.",
+  "evidence": [],
+  "key_pain_points": [],
+  "root_causes": [
+    "Over-personalization: Algorithm leans so hard on a user's history that it stops surfacing anything unfamiliar",
+    "Feedback signals don't tune the algorithm: Skipping, disliking, or saving songs does not visibly change future recommendations",
+    "Mainstream bias: Recommendations skew toward chart hits at the expense of indie, regional, and niche catalogues"
+  ],
+  "affected_segments": [
+    "Discovery Seeker: Hard to find new artists or genres",
+    "Playlist User: Discover Weekly / curated playlists feel stale",
+    "Heavy Listener: Discover Weekly / curated playlists feel stale",
+    "Casual Listener: Ads disrupt the discovery flow",
+    "Premium User: Discover Weekly / curated playlists feel stale",
+    "Free User: Ads disrupt the discovery flow"
+  ],
+  "unmet_needs": [
+    "Need better personalization",
+    "Need fresher and more accurate recommendations"
+  ],
+  "product_focus_areas": [
+    "Feedback-responsive personalization",
+    "Taste-profile transparency and user correction tools",
+    "Quality benchmarks for Discover Weekly and Release Radar"
+  ],
+  "recommended_actions": [
+    "Improve negative feedback loops so skips and dislikes reshape future mixes faster.",
+    "Separate casual listening signals from durable taste signals in ranking.",
+    "Run periodic recommendation audits segmented by listening style."
+  ],
+  "overall_confidence": "Medium"
+}

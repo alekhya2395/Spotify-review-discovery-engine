@@ -1,0 +1,78 @@
+{
+  "total_reviews_analyzed": 1876,
+  "discovery_related_reviews": 619,
+  "discovery_related_share": "33.0%",
+  "category": "product_opportunities",
+  "title": "Product Opportunities",
+  "summary": "Highest-impact product opportunities align with review-backed themes: exploration surfaces outside the taste bubble, freshness controls, segment-aware discovery, and reducing ad-driven interruption for free-tier explorers.",
+  "evidence": [
+    {
+      "label": "Easier music discovery (general)",
+      "count": 61,
+      "percentage": "9.9%",
+      "pool": "discovery-related",
+      "confidence": "High",
+      "support_line": "61 reviews across Reddit and Social Media"
+    },
+    {
+      "label": "Dedicated discovery surfaces beyond Discover Weekly",
+      "count": 30,
+      "percentage": "4.8%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "30 reviews across Social Media and Play Store"
+    },
+    {
+      "label": "Curator- or human-driven discovery",
+      "count": 30,
+      "percentage": "4.8%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "30 reviews across Social Media and Play Store"
+    },
+    {
+      "label": "Better personalization that learns from feedback",
+      "count": 15,
+      "percentage": "2.4%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "15 reviews across Reddit and Social Media"
+    }
+  ],
+  "key_pain_points": [
+    "High-impact discovery bets ranked by review evidence",
+    "Monetization aligned with exploration (not interruption)",
+    "Social and curator-led discovery extensions"
+  ],
+  "root_causes": [
+    "Ad disruption (free tier): Free-tier ads break the listening flow and undermine intentional exploration",
+    "Weak exploration tools: There are not enough surfaces, controls, or settings to actively go discover something new",
+    "Performance & stability: Crashes, lag, sync issues, or login failures interrupt listening before discovery can happen"
+  ],
+  "affected_segments": [
+    "Discovery Seeker: Hard to find new artists or genres",
+    "Playlist User: Discover Weekly / curated playlists feel stale",
+    "Heavy Listener: Discover Weekly / curated playlists feel stale",
+    "Casual Listener: Ads disrupt the discovery flow",
+    "Premium User: Discover Weekly / curated playlists feel stale",
+    "Free User: Ads disrupt the discovery flow"
+  ],
+  "unmet_needs": [
+    "Need easier music discovery",
+    "Need dedicated discovery surfaces beyond Discover Weekly",
+    "Need curator- or human-driven discovery",
+    "Need better personalization that learns from feedback",
+    "Need fresher and more accurate recommendations"
+  ],
+  "product_focus_areas": [
+    "High-impact discovery bets ranked by review evidence",
+    "Monetization aligned with exploration (not interruption)",
+    "Social and curator-led discovery extensions"
+  ],
+  "recommended_actions": [
+    "Rank opportunities by review volume, segment impact, and feasibility.",
+    "Fund two discovery bets per quarter with pre-defined success metrics.",
+    "Close the loop with users when shipped features address top review themes."
+  ],
+  "overall_confidence": "High"
+}

@@ -1,0 +1,37 @@
+{
+  "total_reviews_analyzed": 1876,
+  "discovery_related_reviews": 619,
+  "discovery_related_share": "33.0%",
+  "category": "repetitive_listening_behavior",
+  "title": "Repetitive Listening Behavior",
+  "summary": "Repetitive listening is driven by recommendation loops that resurface favorites, shuffle and autoplay lacking freshness, and engagement signals that overweight repeat plays.",
+  "evidence": [],
+  "key_pain_points": [],
+  "root_causes": [
+    "Over-personalization: Algorithm leans so hard on a user's history that it stops surfacing anything unfamiliar",
+    "Feedback signals don't tune the algorithm: Skipping, disliking, or saving songs does not visibly change future recommendations"
+  ],
+  "affected_segments": [
+    "Discovery Seeker: Hard to find new artists or genres",
+    "Playlist User: Discover Weekly / curated playlists feel stale",
+    "Heavy Listener: Discover Weekly / curated playlists feel stale",
+    "Casual Listener: Ads disrupt the discovery flow",
+    "Premium User: Discover Weekly / curated playlists feel stale",
+    "Free User: Ads disrupt the discovery flow"
+  ],
+  "unmet_needs": [
+    "Need more diverse recommendations",
+    "Need smarter shuffle and autoplay"
+  ],
+  "product_focus_areas": [
+    "Freshness controls in autoplay, shuffle, and radio",
+    "Anti-repetition guardrails in recommendation ranking",
+    "Transparency when the algorithm re-surfaces known favorites"
+  ],
+  "recommended_actions": [
+    "Penalize recently played tracks in autoplay and radio with configurable freshness windows.",
+    "Surface explicit break-the-loop prompts when repetition thresholds are exceeded.",
+    "Audit engagement loops that overweight repeat plays as strong preference signals."
+  ],
+  "overall_confidence": "Medium"
+}

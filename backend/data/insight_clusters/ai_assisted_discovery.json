@@ -1,0 +1,48 @@
+{
+  "total_reviews_analyzed": 1876,
+  "discovery_related_reviews": 619,
+  "discovery_related_share": "33.0%",
+  "category": "ai_assisted_discovery",
+  "title": "AI-Assisted Discovery",
+  "summary": "AI-assisted discovery opportunities include explainable recommendations, exploration objectives in ranking, feedback-responsive personalization, and grounded discovery assistants that respect user taste boundaries.",
+  "evidence": [
+    {
+      "label": "Recommendations feel irrelevant or off-target",
+      "count": 15,
+      "percentage": "2.4%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "15 reviews across Reddit and Social Media"
+    }
+  ],
+  "key_pain_points": [
+    "Recommendations feel irrelevant or off-target"
+  ],
+  "root_causes": [
+    "Over-personalization: Algorithm leans so hard on a user's history that it stops surfacing anything unfamiliar",
+    "Feedback signals don't tune the algorithm: Skipping, disliking, or saving songs does not visibly change future recommendations"
+  ],
+  "affected_segments": [
+    "Discovery Seeker: Hard to find new artists or genres",
+    "Playlist User: Discover Weekly / curated playlists feel stale",
+    "Heavy Listener: Discover Weekly / curated playlists feel stale",
+    "Casual Listener: Ads disrupt the discovery flow",
+    "Premium User: Discover Weekly / curated playlists feel stale",
+    "Free User: Ads disrupt the discovery flow"
+  ],
+  "unmet_needs": [
+    "Need better personalization",
+    "Need confidence when exploring new music"
+  ],
+  "product_focus_areas": [
+    "Explainable AI recommendations with user steering",
+    "Exploration objectives alongside personalization in ranking",
+    "Grounded conversational discovery assistants"
+  ],
+  "recommended_actions": [
+    "Use AI to explain why a track was recommended and offer one-click alternatives.",
+    "Combine collaborative filtering with explicit exploration objectives in ranking.",
+    "Pilot conversational discovery that stays grounded in catalog and user history."
+  ],
+  "overall_confidence": "Medium"
+}

@@ -1,0 +1,42 @@
+{
+  "total_reviews_analyzed": 1876,
+  "discovery_related_reviews": 619,
+  "discovery_related_share": "33.0%",
+  "category": "playlist_dependency",
+  "title": "Playlist Dependency",
+  "summary": "Many users depend on Discover Weekly, Release Radar, and Daily Mix as their primary discovery channel, leaving few alternatives when those playlists feel stale.",
+  "evidence": [
+    {
+      "label": "Discover Weekly / Release Radar feel stale",
+      "count": 38,
+      "percentage": "6.1%",
+      "pool": "discovery-related",
+      "confidence": "Medium",
+      "support_line": "38 reviews across Social Media, Reddit and Play Store"
+    }
+  ],
+  "key_pain_points": [
+    "Discover Weekly / Release Radar feel stale"
+  ],
+  "root_causes": [
+    "Playlist dependency: Listeners can only discover through Discover Weekly / Release Radar / Daily Mix and have no alternatives"
+  ],
+  "affected_segments": [
+    "Playlist User: Discover Weekly / curated playlists feel stale"
+  ],
+  "unmet_needs": [
+    "Need stronger curated discovery playlists",
+    "Need dedicated discovery surfaces beyond Discover Weekly"
+  ],
+  "product_focus_areas": [
+    "Alternative discovery channels independent of curated playlists",
+    "Playlist refresh and diversity metrics visible to users",
+    "Cross-surface discovery that does not require playlist entry"
+  ],
+  "recommended_actions": [
+    "Diversify discovery paths beyond Discover Weekly, Release Radar, and Daily Mix.",
+    "Refresh curated playlists on shorter cycles with transparent update signals.",
+    "Offer alternative discovery modes for users who only engage through playlists."
+  ],
+  "overall_confidence": "Medium"
+}

@@ -58,6 +58,7 @@ from format_labels import (  # noqa: E402
     score_review_relevance,
     summary_for_intent,
 )
+from workflow_engine import generate_workflow_answer  # noqa: E402
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -246,8 +247,10 @@ class ChatResponse(BaseModel):
     answer: str
     grounding_size_chars: int
     matched_reviews: int = 0
-    # Always "deterministic" — chat never uses Groq LLM rewriting (stable for evaluation).
     answer_mode: str = "deterministic"
+    category: str | None = None
+    category_label: str = ""
+    confidence: str = "Medium"
 
 
 # ---------------------------------------------------------------------------
@@ -2386,19 +2389,22 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
             ),
             grounding_size_chars=0,
             matched_reviews=0,
+            answer_mode="error",
+            confidence="Low",
         )
 
-    history = _trim_history(req.history, req.question)
-
-    # Always deterministic — ignore CHAT_STABLE_MODE env on Railway/Vercel.
-    answer = _build_data_grounded_answer(req.question, payload)
-    answer = _strip_ids_and_quotes(answer)
+    result = generate_workflow_answer(req.question)
+    answer = _strip_ids_and_quotes(result["answer"])
 
     return ChatResponse(
         answer=answer,
         grounding_size_chars=len(grounding),
         matched_reviews=int(meta.get("keyword_matches", 0))
         + int(meta.get("semantic_matches", 0)),
+        answer_mode=result.get("answer_mode") or "deterministic",
+        category=result.get("category"),
+        category_label=result.get("category_label") or "",
+        confidence=result.get("confidence") or "Medium",
     )
 
 
