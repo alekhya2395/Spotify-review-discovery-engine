@@ -246,6 +246,8 @@ class ChatResponse(BaseModel):
     answer: str
     grounding_size_chars: int
     matched_reviews: int = 0
+    # Always "deterministic" — chat never uses Groq LLM rewriting (stable for evaluation).
+    answer_mode: str = "deterministic"
 
 
 # ---------------------------------------------------------------------------
