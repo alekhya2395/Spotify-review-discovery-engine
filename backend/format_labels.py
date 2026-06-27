@@ -397,8 +397,12 @@ def detect_question_intent(question: str) -> str:
         return "pain_list"
     if any(p in q for p in ("unmet need", "what do users want", "what users need", "users ask for", "missing")):
         return "unmet_needs"
-    if any(p in q for p in ("segment", "which users", "user type", "different users", "who experiences")):
-        return "segment"
+    if any(p in q for p in (
+        "segment", "user segments", "which users", "user type", "user group",
+        "different users", "who experiences", "which user segment",
+        "different discovery challenge", "different challenges",
+    )):
+        return "segment_question"
     if q.startswith("how"):
         return "how"
     return "general"

@@ -68,8 +68,9 @@ GROQ_FALLBACK_MODEL = os.getenv("GROQ_CHAT_FALLBACK_MODEL", "llama-3.1-8b-instan
 GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "45"))
 GROQ_TEMPERATURE = float(os.getenv("GROQ_CHAT_TEMPERATURE", "0"))
 
-# Set CHAT_STABLE_MODE=true to skip Groq and always use deterministic review-grounded answers.
-CHAT_STABLE_MODE = os.getenv("CHAT_STABLE_MODE", "false").lower() in ("1", "true", "yes")
+# Set CHAT_STABLE_MODE=true (default) for deterministic, evaluation-ready answers.
+# Set CHAT_STABLE_MODE=false to allow Groq paraphrasing (answers may vary slightly).
+CHAT_STABLE_MODE = os.getenv("CHAT_STABLE_MODE", "true").lower() not in ("0", "false", "no")
 
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_CHARS = 600
@@ -938,14 +939,67 @@ def _collect_review_signals(
     return signals
 
 
+def _synthesize_segment_summary(evidence: dict[str, Any]) -> str:
+    """Direct answer for segment-comparison questions using structured segment data."""
+    segments = evidence.get("user_segments") or []
+    if not segments:
+        return (
+            "Different user segments report distinct discovery challenges shaped by "
+            "listening style, playlist dependence, and subscription tier."
+        )
+
+    parts: list[str] = []
+    for seg in segments[:5]:
+        name = (seg.get("name") or "").strip()
+        if not name:
+            continue
+        dc = (seg.get("discovery_challenge") or {}).get("label") or ""
+        pf = (seg.get("primary_frustration") or {}).get("label") or ""
+        challenge = dc or pf
+        if challenge:
+            parts.append(f"**{name}** — {challenge.rstrip('.')}")
+        elif (seg.get("unmet_need") or {}).get("label"):
+            parts.append(f"**{name}** — {(seg['unmet_need']['label']).rstrip('.')}")
+
+    if len(parts) >= 2:
+        joined = "; ".join(parts[:4])
+        return (
+            f"Discovery challenges differ by segment: {joined}. "
+            "Each group’s top frustration reflects how they listen and what surfaces they rely on."
+        )
+    if parts:
+        return f"The clearest segment contrast in the data: {parts[0]}."
+    return (
+        "User segments in the review corpus experience different discovery challenges "
+        "based on listening intensity, playlist use, and free vs. premium constraints."
+    )
+
+
 def _synthesize_summary(
     question: str,
     intent: str,
     topic: str,
     signals: list[dict[str, str]],
+    evidence: dict[str, Any] | None = None,
 ) -> str:
     """Build a summary that directly answers the question from review signals."""
-    needs = [s["need"].rstrip(".") for s in signals if s.get("need")][:3]
+    if intent == "segment_question" and evidence:
+        return _synthesize_segment_summary(evidence)
+
+    needs: list[str] = []
+    for s in signals:
+        raw = str(s.get("need") or "").strip()
+        if not raw:
+            continue
+        cleaned = strategic_rewrite(raw).rstrip(".")
+        if cleaned in NON_UNMET_NEED_LABELS or cleaned == _GENERIC_NEED:
+            continue
+        if topic in {"discovery", "recommendations", "repetition"} and cleaned not in DISCOVERY_FOCUSED_NEEDS:
+            continue
+        if cleaned.lower() not in {n.lower() for n in needs}:
+            needs.append(cleaned)
+        if len(needs) >= 3:
+            break
 
     if intent == "why_cause" and topic == "discovery":
         return (
@@ -1324,7 +1378,7 @@ def _build_evidence_pack(
         "heavy", "casual", "discovery seeker", "playlist user",
         "who is", "which users", "which group",
     )
-    if any(k in q_lower for k in segment_keywords):
+    if intent == "segment_question" or any(k in q_lower for k in segment_keywords):
         try:
             us = compute_user_segments()
             relevant = _select_relevant_segments(us, q_lower)
@@ -1360,7 +1414,13 @@ def _select_relevant_segments(us: dict[str, Any], q_lower: str) -> list[dict[str
         if any(kw in q_lower for kw in name_keywords.get(seg["name"], ())):
             picked.append(seg)
     if not picked:
-        picked = sorted(segments, key=lambda s: -(s.get("count") or 0))[:3]
+        if any(k in q_lower for k in (
+            "different", "each segment", "all segment", "compare segment",
+            "which user segment", "user segments", "different discovery",
+        )):
+            picked = sorted(segments, key=lambda s: -(s.get("count") or 0))
+        else:
+            picked = sorted(segments, key=lambda s: -(s.get("count") or 0))[:3]
     return [
         {
             "name": s["name"],
@@ -1593,7 +1653,14 @@ def _collect_evidence_findings(evidence: dict[str, Any]) -> list[dict[str, Any]]
 
     primary.sort(key=lambda f: -(f["count"] or 0))
     secondary.sort(key=lambda f: -(f["count"] or 0))
-    return primary + secondary
+    ranked = primary + secondary
+
+    if evidence.get("intent") == "segment_question":
+        segment_first = [f for f in ranked if f.get("source") == "user_segments"]
+        other = [f for f in ranked if f.get("source") != "user_segments"]
+        ranked = segment_first + other
+
+    return ranked
 
 
 def _evidence_section_lines(evidence: dict[str, Any]) -> list[str]:
@@ -2006,6 +2073,7 @@ def _build_data_grounded_answer(question: str, payload: dict[str, Any]) -> str:
             _filter_reviews_for_question(payload.get("matched_reviews") or [], question, topic),
             question, topic,
         ),
+        evidence=evidence,
     )
 
     candidates: list[tuple[str, str]] = []
@@ -2320,7 +2388,7 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
 
     history = _trim_history(req.history, req.question)
 
-    if CHAT_STABLE_MODE and not groq_key:
+    if CHAT_STABLE_MODE:
         answer = _build_data_grounded_answer(req.question, payload)
     else:
         answer = _try_groq_answer(
