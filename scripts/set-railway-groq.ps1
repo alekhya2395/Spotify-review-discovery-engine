@@ -25,7 +25,8 @@ railway link
 Write-Host "Setting Railway variables..."
 $key | railway variable set GROQ_API_KEY --stdin
 railway variable set GROQ_CHAT_MODEL=llama-3.1-8b-instant
-railway variable set CHAT_STABLE_MODE=false
-railway variable set ALLOWED_ORIGINS=https://spotify-review-discovery-engine-alekhyadhulipudi.vercel.app
+# Chat uses deterministic data-grounded answers; Groq key is for health/status only.
+railway variable set CHAT_STABLE_MODE=true
+railway variable set ALLOWED_ORIGINS=https://spotify-review-discovery-engine-eta.vercel.app,https://spotify-review-discovery-engine-alekhyadhulipudi.vercel.app
 
 Write-Host "Done. Verify: https://spotify-review-discovery-engine-production.up.railway.app/api/health"

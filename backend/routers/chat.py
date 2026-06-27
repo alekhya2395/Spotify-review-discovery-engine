@@ -68,9 +68,10 @@ GROQ_FALLBACK_MODEL = os.getenv("GROQ_CHAT_FALLBACK_MODEL", "llama-3.1-8b-instan
 GROQ_TIMEOUT_SECONDS = float(os.getenv("GROQ_CHAT_TIMEOUT", "45"))
 GROQ_TEMPERATURE = float(os.getenv("GROQ_CHAT_TEMPERATURE", "0"))
 
-# Set CHAT_STABLE_MODE=true (default) for deterministic, evaluation-ready answers.
-# Set CHAT_STABLE_MODE=false to allow Groq paraphrasing (answers may vary slightly).
-CHAT_STABLE_MODE = os.getenv("CHAT_STABLE_MODE", "true").lower() not in ("0", "false", "no")
+# Chat answers are ALWAYS data-grounded and deterministic (same question → same answer).
+# Groq is not used for /api/chat so production responses stay stable for evaluation.
+# GROQ_API_KEY remains used for health reporting and optional future features only.
+CHAT_STABLE_MODE = True
 
 MAX_HISTORY_TURNS = 4
 MAX_HISTORY_CHARS = 600
@@ -2372,7 +2373,6 @@ def _has_summary_only(text: str) -> bool:
 
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, request: Request) -> ChatResponse:
-    groq_key = groq_api_key(request)
     try:
         payload, grounding, meta = build_review_context(req.question)
     except Exception as exc:
@@ -2388,17 +2388,8 @@ def chat(req: ChatRequest, request: Request) -> ChatResponse:
 
     history = _trim_history(req.history, req.question)
 
-    if CHAT_STABLE_MODE:
-        answer = _build_data_grounded_answer(req.question, payload)
-    else:
-        answer = _try_groq_answer(
-            req.question, payload, grounding, history=[], api_key=groq_key
-        )
-        if not answer:
-            logger.info("chat answer from review-grounded fallback for %r", req.question[:80])
-            answer = _build_data_grounded_answer(req.question, payload)
-
-    answer = _ensure_required_sections(answer, req.question, payload)
+    # Always deterministic — ignore CHAT_STABLE_MODE env on Railway/Vercel.
+    answer = _build_data_grounded_answer(req.question, payload)
     answer = _strip_ids_and_quotes(answer)
 
     return ChatResponse(
